@@ -1,0 +1,46 @@
+---
+title: Workflow ER Diagram
+---
+erDiagram
+    COMMIT {
+        string id PK
+        string sha
+        string date
+        string content
+    }
+
+    VERSION {
+        string id PK
+        string date
+        string semver
+    }
+
+    COMPONENT {
+        string id PK
+        string type
+    }
+
+    WORKFLOW {
+        string id PK
+        string name
+        string path
+    }
+
+    REPOSITORY {
+        string id PK
+        string name
+        string organization
+        int creation
+    }
+
+    VENDOR {
+        string id PK
+        string name
+    }
+
+    COMPONENT ||--|{ VERSION : HAS
+    COMMIT }o--o{ VERSION : USES
+    WORKFLOW ||--|{ COMMIT : PUSHES
+    REPOSITORY ||--|{ WORKFLOW : CONTAINS
+    VENDOR ||--o{ REPOSITORY : OWNS
+    VENDOR ||--o{ COMPONENT : PUBLISHES
