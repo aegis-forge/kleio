@@ -2,32 +2,38 @@
 title: Workflow ER Diagram
 ---
 erDiagram
-    COMMIT {
-        string id PK
-        string sha
-        string date
-        string content
-    }
-
     VERSION {
         string id PK
-        string date
-        string semver
+        string full_name
+        string name
+        string type
     }
 
     COMPONENT {
         string id PK
+        string full_name
+        string name
         string type
+    }
+
+    COMMIT {
+        string id PK
+        string date
+        string full_name
+        string name
+        string content
     }
 
     WORKFLOW {
         string id PK
+        string full_name
         string name
         string path
     }
 
     REPOSITORY {
         string id PK
+        string full_name
         string name
         string url
     }
@@ -39,6 +45,7 @@ erDiagram
 
     COMPONENT ||--|{ VERSION : HAS
     COMMIT }o--o{ VERSION : USES
+    COMMIT }o--o{ COMMIT : USES
     WORKFLOW ||--|{ COMMIT : PUSHES
     REPOSITORY ||--|{ WORKFLOW : CONTAINS
     VENDOR ||--o{ REPOSITORY : OWNS
