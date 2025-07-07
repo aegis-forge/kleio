@@ -1,16 +1,11 @@
 package main
 
 import (
-	"app/pkg/git"
+	"app/app/crawler"
+	"app/app/helpers"
 )
 
 func main() {
-	//helpers.Initialize()
-	_, err := git.GetHistory(
-		"/Users/edoriggio/Documents/personal/github/personal/www/",
-		".github/workflows/deploy.yml")
-
-	if err != nil {
-		panic(err)
-	}
+	neoDriver, neoCtx := helpers.Initialize()
+	crawler.ExtractWorkflows(neoDriver, neoCtx)
 }

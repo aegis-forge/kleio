@@ -7,26 +7,29 @@ import (
 	"gopkg.in/ini.v1"
 )
 
-func ConnectToNeo(config *ini.File) (neo4j.DriverWithContext, context.Context, error) {
+// ConnectToNeo is used to connect to the Neo4j instance
+func ConnectToNeo(config *ini.Section) (neo4j.DriverWithContext, context.Context, error) {
 	ctx := context.Background()
 
-	dbUri := config.Section("NEO4J").Key("URI").String()
-	dbUser := config.Section("NEO4J").Key("USERNAME").String()
-	dbPassword := config.Section("NEO4J").Key("PASSWORD").String()
+	dbUri := config.Key("URI").String()
+	dbUser := config.Key("USERNAME").String()
+	dbPassword := config.Key("PASSWORD").String()
+
+	fmt.Printf("\u001B[37m[INIT]\u001B[0m Connecting to Neo4j (\u001B[34m%s\u001B[0m)", dbUri)
 
 	driver, err := neo4j.NewDriverWithContext(dbUri, neo4j.BasicAuth(dbUser, dbPassword, ""))
 
-	defer func(driver neo4j.DriverWithContext, ctx context.Context) {
-		if err = driver.Close(ctx); err != nil {
-			panic(err)
-		}
-	}(driver, ctx)
-
-	if err = driver.VerifyConnectivity(ctx); err != nil {
-		panic(err)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	fmt.Printf("Connection to %s established.", dbUri)
+	if err = driver.VerifyConnectivity(ctx); err != nil {
+		fmt.Println(" \u001B[31m𐄂\u001B[0m")
+
+		return nil, nil, err
+	}
+
+	fmt.Println(" \u001B[32m✓\u001B[0m")
 
 	return driver, ctx, err
 }

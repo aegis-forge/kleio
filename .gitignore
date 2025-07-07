@@ -17,7 +17,11 @@ coverage.*
 *.coverprofile
 profile.cov
 config.ini
+
 dist/
+tmp/
+out/*
+!/out/repositories.txt
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
