@@ -58,3 +58,8 @@ func (r *Repository) GetUrl() string {
 func (r *Repository) GetFiles() []File {
 	return r.files
 }
+
+// GetFilesNumber returns the number of files present in the [Repository] struct
+func (r *Repository) GetFilesNumber() int {
+	return len(r.files)
+}

@@ -1,6 +1,7 @@
 ---
 title: Neo4j Graph Model
 ---
+
 flowchart LR
     VENDOR((Vendor))
     REPOSITORY((Repository))
@@ -8,11 +9,13 @@ flowchart LR
     COMMIT((Commit))
     COMPONENT((Component))
     VERSION((Version))
+    VUNLNERABILITY((Vulnerability))
 
     VENDOR -->|OWNS| REPOSITORY
     VENDOR -->|PUBLISHES| COMPONENT
     REPOSITORY -->|CONTAINS| WORKFLOW
     WORKFLOW -->|PUSHES| COMMIT
-    COMMIT -->|USES| VERSION
     COMMIT -->|USES| COMMIT
-    COMPONENT -->|HAS| VERSION
+    COMPONENT -->|DEPLOYS| VERSION
+    VERSION -->|PUSHES| COMMIT
+    COMMIT -->|HAS| VUNLNERABILITY

@@ -6,9 +6,11 @@ import (
 	"app/pkg/git/model"
 	"bufio"
 	"context"
-	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"fmt"
 	"os"
 	"strings"
+
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
 func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context) {
@@ -26,6 +28,15 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context)
 		workflows, err := git.ExtractWorkflows(url)
 
 		if err != nil {
+			urlSplit := strings.Split(url, "/")
+			git.DeleteRepo(urlSplit[len(urlSplit)-1])
+
+			if strings.Contains(err.Error(), "no such file") {
+				fmt.Println(" \u001B[31m𐄂\u001B[0m \u001B[34m(No workflows found)\u001B[0m")
+				fmt.Println()
+				continue
+			}
+
 			panic(err)
 		}
 

@@ -14,6 +14,14 @@ import (
 	"strings"
 )
 
+func DeleteRepo(path string) {
+	err := os.RemoveAll(path)
+
+	if err != nil {
+		panic(err)
+	}
+}
+
 // buildComponent appends a [Component] struct to the slice of components
 func buildComponent(cType string, sep string, component string, components map[string]*model.Component) {
 	componentSplit := strings.Split(component, sep)
@@ -108,7 +116,7 @@ func ExtractWorkflows(url string) ([]model.File, error) {
 		}
 	}
 
-	fmt.Println("Extracting workflows from \033[31m" + repoName + "\033[0m and reading histories")
+	fmt.Print("Extracting workflows from \033[31m" + repoName + "\033[0m and reading histories")
 
 	_, err = os.Stat(path.Join(repoPath, ".github/workflows"))
 
@@ -130,11 +138,7 @@ func ExtractWorkflows(url string) ([]model.File, error) {
 		}
 	}
 
-	//err = os.RemoveAll(repoPath)
-	//
-	//if err != nil {
-	//	return nil, err
-	//}
+	DeleteRepo(repoPath)
 
 	return workflows, nil
 }

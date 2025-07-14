@@ -4,12 +4,13 @@ import (
 	"app/pkg/git/model"
 	"context"
 	"fmt"
+	"github.com/gosuri/uilive"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"strings"
 	"time"
 )
 
-// executeQueryNeo send the actual query, together with the content, to neo4j
+// executeQueryNeo sends the actual query, together with the content, to neo4j
 func executeQueryNeo(query string, content map[string]any, driver neo4j.DriverWithContext, ctx context.Context) {
 	if _, err := neo4j.ExecuteQuery(
 		ctx, driver, query, content, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("neo4j"),
@@ -18,6 +19,7 @@ func executeQueryNeo(query string, content map[string]any, driver neo4j.DriverWi
 	}
 }
 
+// executeQueryNeo send the actual query, together with the content, to neo4j. Finally, it returns the resulting records
 func executeQueryWithRetNeo(query string, content map[string]any, driver neo4j.DriverWithContext, ctx context.Context) []*neo4j.Record {
 	if result, err := neo4j.ExecuteQuery(
 		ctx, driver, query, content, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("neo4j"),
@@ -192,6 +194,8 @@ func SendToNeo(repository model.Repository, driver neo4j.DriverWithContext, ctx 
 	vendor := strings.Split(repository.GetName(), "/")[0]
 	repo := strings.Split(repository.GetName(), "/")[1]
 
+	fmt.Println("\u001B[37m[NEO4J]\u001B[0m Saving repo \033[31m" + repo + "\033[0m")
+
 	executeQueryNeo(
 		`MERGE (v:Vendor {name: $vendor})
 		MERGE (r:Repository {name: $repository, full_name: $full, url: $url})
@@ -205,7 +209,23 @@ func SendToNeo(repository model.Repository, driver neo4j.DriverWithContext, ctx 
 		driver, ctx,
 	)
 
-	for _, workflow := range repository.GetFiles() {
+	writer := uilive.New()
+	writer.Start()
+
+	for i, workflow := range repository.GetFiles() {
 		addWorkflows(workflow, repository.GetName(), driver, ctx)
+
+		_, _ = fmt.Fprintf(
+			writer,
+			"\u001B[37m[NEO4J]\u001B[0m Saving workflows [%d/%d]\n",
+			i+1, repository.GetFilesNumber(),
+		)
+
+		time.Sleep(time.Millisecond * 25)
 	}
+
+	_, _ = fmt.Fprintf(writer.Bypass(), "\u001B[37m[NEO4J]\u001B[0m Saving workflows \u001B[32m✓\u001B[0m\n")
+
+	writer.Stop()
+	fmt.Println()
 }

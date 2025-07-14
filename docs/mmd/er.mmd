@@ -2,6 +2,14 @@
 title: Workflow ER Diagram
 ---
 erDiagram
+    VULNERABILITY {
+        string id PK
+        string cwe
+        string cve
+        string cvss
+        string severity
+    }
+
     VERSION {
         string id PK
         string full_name
@@ -43,8 +51,9 @@ erDiagram
         string name
     }
 
-    COMPONENT ||--|{ VERSION : HAS
-    COMMIT }o--o{ VERSION : USES
+    COMMIT }|--o{ VULNERABILITY : HAS
+    VERSION }|--|{ COMMIT : PUSHES
+    COMPONENT ||--|{ VERSION : DEPLOYS
     COMMIT }o--o{ COMMIT : USES
     WORKFLOW ||--|{ COMMIT : PUSHES
     REPOSITORY ||--|{ WORKFLOW : CONTAINS
