@@ -32,7 +32,7 @@ func Initialize() (neo4j.DriverWithContext, context.Context) {
 
 	// Retrieve top N URLs from GitHub (if file does not exist)
 	_, filename, _, _ := runtime.Caller(0)
-	reposPath := path.Join(path.Dir(filename), "../../out/repositories.txt")
+	reposPath := path.Join(path.Dir(filename), "../../repositories.txt")
 
 	if _, err = os.Stat(reposPath); os.IsNotExist(err) {
 		if err = getTopRepositories(config.Section("GITHUB")); err != nil {

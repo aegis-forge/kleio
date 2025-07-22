@@ -23,7 +23,7 @@ type Repos struct {
 // writeToFile takes all the retrieved URLs and saves them in a file
 func writeToFile(urls []string) error {
 	_, filename, _, _ := runtime.Caller(0)
-	file, err := os.Create(path.Join(path.Dir(filename), "../../out/repositories.txt"))
+	file, err := os.Create(path.Join(path.Dir(filename), "../../repositories.txt"))
 
 	if err != nil {
 		return err

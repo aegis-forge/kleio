@@ -1,9 +1,9 @@
-package database
+package github
 
 import (
+	"app/app/database"
 	"app/pkg/git"
 	"app/pkg/git/model"
-	"app/pkg/github"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -42,7 +42,7 @@ func getTags(action string, bearer string) ([]string, error) {
 
 	for {
 		uri := fmt.Sprintf("repos/%s/releases?page=%d&per_page=100", action, i)
-		res, err := github.PerformApiCall(uri, bearer, nil)
+		res, err := PerformApiCall(uri, bearer, nil)
 
 		if err != nil {
 			return nil, err
@@ -95,7 +95,7 @@ func getCommitHashes(action string, tags []string, bearer string) (map[string]st
 	for index, tag := range tags {
 		// Get tag SHA
 		uri := fmt.Sprintf("repos/%s/git/ref/tags/%s", action, tag)
-		res, err := github.PerformApiCall(uri, bearer, nil)
+		res, err := PerformApiCall(uri, bearer, nil)
 
 		if err != nil {
 			return nil, err
@@ -110,7 +110,7 @@ func getCommitHashes(action string, tags []string, bearer string) (map[string]st
 
 		// Get commit SHA
 		uri = fmt.Sprintf("repos/%s/git/tags/%s", action, tagRaw.Object.Sha)
-		res, err = github.PerformApiCall(uri, bearer, nil)
+		res, err = PerformApiCall(uri, bearer, nil)
 
 		if err != nil {
 			hashes[tag] = tagRaw.Object.Sha
@@ -136,7 +136,7 @@ func getCommitHashes(action string, tags []string, bearer string) (map[string]st
 		writer.Bypass(),
 		"[ACTIONS] Extracting tags \u001B[32m✓\u001B[0m\n",
 	)
-	
+
 	time.Sleep(time.Millisecond * 25)
 	writer.Stop()
 
@@ -211,7 +211,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 	fmt.Printf("\u001B[37m[NEO4J]\u001B[0m Saving releases")
 
 	for version, hashes := range versionToCommitMap {
-		executeQueryNeo(
+		database.ExecuteQueryNeo(
 			`MERGE (v:Vendor {name: $vendor})
 			MERGE (c:Component {full_name: $component, name: $action, type: "action"})
 			MERGE (ve:Version {full_name: $version, name: $semver})
@@ -254,7 +254,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 				panic(err)
 			}
 
-			executeQueryNeo(
+			database.ExecuteQueryNeo(
 				`MATCH (v:Version {full_name: $version})
 				MERGE (c:Commit {full_name: $commit, name: $hash, date: $date})
 				MERGE (v)-[:PUSHES]->(c)`,
@@ -282,7 +282,7 @@ func GetActionsCommits(repo model.Repository, config *ini.Section, driver neo4j.
 				action := component.GetName()
 
 				// Check if Action exists in database
-				if res := executeQueryWithRetNeo(
+				if res := database.ExecuteQueryWithRetNeo(
 					`MATCH (c:Component {full_name: $component})
 					WITH COUNT(c) > 0 as node_c
 					RETURN node_c`,

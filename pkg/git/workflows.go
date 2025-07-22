@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
+	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v3"
 )
 
@@ -86,7 +87,7 @@ func extractComponents(content string) ([]*model.Component, error) {
 }
 
 // ExtractWorkflows returns a slice of [File] structs with their histories given the URL of a GitHub repository
-func ExtractWorkflows(url string) ([]model.File, error) {
+func ExtractWorkflows(url string, config *ini.Section) ([]model.File, error) {
 	var workflows []model.File
 
 	_, filename, _, _ := runtime.Caller(0)
@@ -96,31 +97,49 @@ func ExtractWorkflows(url string) ([]model.File, error) {
 	reposPath := path.Join(path.Dir(filename), "../../tmp/repos")
 	repoPath := path.Join(reposPath, repoName)
 
-	err := os.MkdirAll(reposPath, 0755)
+	if !strings.HasPrefix(url, "http") {
+		customPath, err := config.GetKey("REPOS_DIR")
 
-	if err != nil {
-		return nil, err
-	}
+		if err != nil {
+			return nil, err
+		}
 
-	if _, err = os.Stat(path.Join(repoPath)); err != nil {
-		if os.IsNotExist(err) {
-			fmt.Print("Repo \033[31m" + repoName + "\033[0m not in filesystem, cloning (might take some time)")
+		reposPath = path.Join(path.Dir(filename), "../..", customPath.String())
+		repoPath = path.Join(reposPath, repoName)
 
-			cmd := exec.Command("git", "clone", url, repoPath)
-			err = cmd.Run()
-
-			if err != nil {
-				fmt.Println(" \u001B[31m𐄂\u001B[0m")
-				return nil, err
+		if _, err := os.Stat(path.Join(repoPath)); err != nil {
+			if os.IsNotExist(err) {
+				panic(err)
 			}
+		}
+	} else {
+		err := os.MkdirAll(reposPath, 0755)
 
-			fmt.Println(" \u001B[32m✓\u001B[0m")
+		if err != nil {
+			return nil, err
+		}
+
+		// Clone the repo if it's not already in the filesystem
+		if _, err = os.Stat(path.Join(repoPath)); err != nil {
+			if os.IsNotExist(err) {
+				fmt.Print("Repo \033[31m" + repoName + "\033[0m not in filesystem, cloning (might take some time)")
+
+				cmd := exec.Command("git", "clone", url, repoPath)
+				err = cmd.Run()
+
+				if err != nil {
+					fmt.Println(" \u001B[31m𐄂\u001B[0m")
+					return nil, err
+				}
+
+				fmt.Println(" \u001B[32m✓\u001B[0m")
+			}
 		}
 	}
 
 	fmt.Print("Extracting workflows from \033[31m" + repoName + "\033[0m and reading histories\n")
 
-	_, err = os.Stat(path.Join(repoPath, ".github/workflows"))
+	_, err := os.Stat(path.Join(repoPath, ".github/workflows"))
 
 	if err != nil {
 		return nil, err
@@ -132,6 +151,7 @@ func ExtractWorkflows(url string) ([]model.File, error) {
 		return nil, err
 	}
 
+	// For each workflow file in the `.github/workflows/` directory, extract its history
 	for _, f := range files {
 		if history, err := getFileHistory(repoPath, ".github/workflows/"+f.Name()); err == nil {
 			workflows = append(workflows, history)
@@ -140,7 +160,7 @@ func ExtractWorkflows(url string) ([]model.File, error) {
 		}
 	}
 
-	DeleteRepo(repoPath)
+	// DeleteRepo(repoPath)
 
 	return workflows, nil
 }

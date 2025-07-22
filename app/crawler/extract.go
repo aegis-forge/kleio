@@ -5,6 +5,7 @@ import (
 	"app/app/helpers"
 	"app/pkg/git"
 	"app/pkg/git/model"
+	"app/pkg/github"
 	"bufio"
 	"context"
 	"fmt"
@@ -16,7 +17,14 @@ import (
 
 // ExtractWorkflows extracts the workflows from the Repository
 func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context) {
-	f, err := os.Open("../out/repositories.txt")
+	// Read config
+	config, err := helpers.ReadConfig()
+
+	if err != nil {
+		panic(err)
+	}
+	
+	f, err := os.Open("../repositories.txt")
 
 	if err != nil {
 		panic(err)
@@ -25,9 +33,15 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context)
 	scanner := bufio.NewScanner(f)
 
 	for scanner.Scan() {
+		section, err := config.GetSection("GENERAL")
+		
+		if err != nil {
+			panic(err)
+		}
+		
 		url := scanner.Text()
 		// Extract all workflows from repository
-		workflows, err := git.ExtractWorkflows(url)
+		workflows, err := git.ExtractWorkflows(url, section)
 
 		if err != nil {
 			urlSplit := strings.Split(url, "/")
@@ -53,7 +67,7 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context)
 		}
 
 		// Retrieve Actions Commits
-		database.GetActionsCommits(repo, config.Section("GITHUB"), neoDriver, neoCtx)
+		github.GetActionsCommits(repo, config.Section("GITHUB"), neoDriver, neoCtx)
 
 		// Save repo to neo4j
 		database.SendToNeo(repo, neoDriver, neoCtx)

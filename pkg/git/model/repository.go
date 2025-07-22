@@ -1,5 +1,9 @@
 package model
 
+import (
+	"strings"
+)
+
 // ============
 // == VENDOR ==
 // ============
@@ -42,6 +46,11 @@ func (r *Repository) Init(name string, url string, files []File) {
 	r.name = name
 	r.url = url
 	r.files = files
+
+	if strings.Contains(url, "--") {
+		r.url = strings.Replace(url, "--", "/", 1)
+		r.name = r.url
+	}
 }
 
 // GetName returns the name of the [Repository] struct

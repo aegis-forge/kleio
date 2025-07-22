@@ -1,5 +1,5 @@
 ---
-title: Workflow ER Diagram
+title: Neo4j ER Diagram
 ---
 erDiagram
     VULNERABILITY {
@@ -54,8 +54,22 @@ erDiagram
     COMMIT }|--o{ VULNERABILITY : HAS
     VERSION }|--|{ COMMIT : PUSHES
     COMPONENT ||--|{ VERSION : DEPLOYS
-    COMMIT }o--o{ COMMIT : USES
     WORKFLOW ||--|{ COMMIT : PUSHES
     REPOSITORY ||--|{ WORKFLOW : CONTAINS
     VENDOR ||--o{ REPOSITORY : OWNS
     VENDOR ||--o{ COMPONENT : PUBLISHES
+
+    USES {
+        string times
+        string version
+        string type
+    }
+
+    CHANGED_TO {
+        string diff
+    }
+
+    COMMIT_1 }o--|| USES : ""
+    USES ||--o{ COMMIT_2 : ""
+    COMMIT_3 |o--|| CHANGED_TO : ""
+    CHANGED_TO ||--o| COMMIT_4 : ""

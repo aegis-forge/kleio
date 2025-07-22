@@ -3,7 +3,9 @@ package database
 import (
 	"app/pkg/git/model"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -17,7 +19,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 	name := versionName
 
 	if strings.HasSuffix(component, ".yaml") || strings.HasSuffix(component, ".yml") {
-		for _, value := range executeQueryWithRetNeo(
+		for _, value := range ExecuteQueryWithRetNeo(
 			`MATCH (:Workflow {full_name: $workflow})-[:PUSHED]->(c:Commit)
 			ORDER BY c.date DESC
 			RETURN c.full_name, c.date`,
@@ -33,7 +35,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 				workflowNameRaw, _ := value.Get("c.full_name")
 				workflowName := workflowNameRaw.(string)
 
-				executeQueryNeo(
+				ExecuteQueryNeo(
 					`MATCH (c:Commit {full_name: $commit})
 					MATCH (v:Commit {full_name: $version})
 					MERGE (c)-[:USES {times: $times, version: $semver, type: $type}]->(v)`,
@@ -51,7 +53,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 			}
 		}
 	} else {
-		if res := executeQueryWithRetNeo(
+		if res := ExecuteQueryWithRetNeo(
 			`MATCH (v:Commit {full_name: $version})
 			WITH COUNT(v) > 0 as node_v
 			RETURN node_v`,
@@ -60,7 +62,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 			},
 			driver, ctx,
 		); res[0].Values[0] == true {
-			executeQueryNeo(
+			ExecuteQueryNeo(
 				`MATCH (c:Commit {full_name: $commit})
 				MATCH (v:Commit {full_name: $version})
 				MERGE (c)-[:USES {times: $times, version: $semver, type: $type}]->(v)`,
@@ -69,12 +71,12 @@ func addVersion(version model.Version, component string, commit string, date tim
 					"version": fmt.Sprintf("%s/%s", component, name),
 					"times":   version.GetUses(),
 					"semver":  version.GetVersionString(),
-					"type":   version.GetVersionType(),
+					"type":    version.GetVersionType(),
 				},
 				driver, ctx,
 			)
 		} else {
-			for _, value := range executeQueryWithRetNeo(
+			for _, value := range ExecuteQueryWithRetNeo(
 				`MATCH (:Component {full_name: $component})-[:DEPLOYS]->(:Version {full_name: $version})-[:PUSHES]->(c:Commit)
 				ORDER BY c.date DESC
 				RETURN c.full_name, c.date`,
@@ -90,21 +92,21 @@ func addVersion(version model.Version, component string, commit string, date tim
 				if date.After(workflowDate) {
 					workflowNameRaw, _ := value.Get("c.full_name")
 					workflowName := workflowNameRaw.(string)
-					
-					executeQueryNeo(`
+
+					ExecuteQueryNeo(`
 						MATCH (v:Commit {full_name: $version})
 						MATCH (c:Commit {full_name: $commit})
 						MERGE (c)-[:USES {times: $times, version: $semver, type: $type}]->(v)`,
 						map[string]any{
 							"version": workflowName,
-							"commit": commit,
-							"times": version.GetUses(),
-							"semver": version.GetVersionString(),
-							"type": version.GetVersionType(),
+							"commit":  commit,
+							"times":   version.GetUses(),
+							"semver":  version.GetVersionString(),
+							"type":    version.GetVersionType(),
 						},
 						driver, ctx,
 					)
-					
+
 					return
 				}
 			}
@@ -131,7 +133,7 @@ func addCommits(commit model.Commit, workflow string, driver neo4j.DriverWithCon
 	commitFull := fmt.Sprintf("%s/%s", workflow, commit.GetHash())
 	content, _ := commit.GetContent(false)
 
-	executeQueryNeo(
+	ExecuteQueryNeo(
 		`MATCH (w:Workflow {full_name: $full})
 		MERGE (c:Commit {name: $hash, date: $date, full_name: $full_c, content: $content})
 		MERGE (w)-[:PUSHED]->(c)`,
@@ -153,7 +155,7 @@ func addCommits(commit model.Commit, workflow string, driver neo4j.DriverWithCon
 func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithContext, ctx context.Context) {
 	workflowFull := fmt.Sprintf("%s/%s", repo, workflow.GetFilename())
 
-	executeQueryNeo(
+	ExecuteQueryNeo(
 		`MATCH (r:Repository {full_name: $full})
 		MERGE (w:Workflow {name: $workflow, full_name: $full_w, path: $path})
 		MERGE (r)-[:CONTAINS]->(w)`,
@@ -169,6 +171,59 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 	for _, commit := range workflow.GetHistory() {
 		addCommits(commit, workflowFull, driver, ctx)
 	}
+
+	// Retrieve all the commits of a workflow and compute the syntactical diff between them
+	commits := ExecuteQueryWithRetNeo(
+		`MATCH (:Workflow {full_name: $workflow})-[PUSHES]->(c:Commit)
+		RETURN c.full_name, c.content`,
+		map[string]any{
+			"workflow": workflowFull,
+		},
+		driver, ctx,
+	)
+
+	for index, value := range commits {
+		if index == len(commits)-1 {
+			continue
+		}
+		
+		precFile, _ := value.Get("c.full_name")
+		succFile, _ := commits[index+1].Get("c.full_name")
+		
+		precCommit, _ := value.Get("c.content")
+		succCommit, _ := commits[index+1].Get("c.content")
+
+		precContent, err := base64.StdEncoding.DecodeString(precCommit.(string))
+		succContent, err := base64.StdEncoding.DecodeString(succCommit.(string))
+
+		if err != nil {
+			panic(err)
+		}
+		
+		cmd := exec.Command(
+			"/bin/bash", "-c", 
+			fmt.Sprintf("gawd --json <(echo \"%s\") <(echo \"%s\")",
+				strings.ReplaceAll(strings.ReplaceAll(string(precContent), "$", "\\$"), "\"", "\\\""),
+				strings.ReplaceAll(strings.ReplaceAll(string(succContent), "$", "\\$"), "\"", "\\\""),
+			),
+		)
+		out, err := cmd.Output()
+		
+		if err != nil {
+			panic(err)
+		}
+		
+		ExecuteQueryNeo(
+			`MATCH (c1:Commit {full_name: $commit1})
+			MATCH (c2:Commit {full_name: $commit2})
+			MERGE (c1)-[:CHANGED_TO {diff: $diff}]->(c2)`,
+			map[string]any{
+				"commit1": precFile,
+				"commit2": succFile,
+				"diff": string(out),
+			},
+			driver, ctx)
+	}
 }
 
 // SendToNeo adds the given repository to neo4j
@@ -178,7 +233,8 @@ func SendToNeo(repository model.Repository, driver neo4j.DriverWithContext, ctx 
 
 	fmt.Println("\u001B[37m[NEO4J]\u001B[0m Saving repo \033[31m" + repo + "\033[0m")
 
-	executeQueryNeo(
+	// Add the vendor and its repository to Neo4j
+	ExecuteQueryNeo(
 		`MERGE (v:Vendor {name: $vendor})
 		MERGE (r:Repository {name: $repository, full_name: $full, url: $url})
 		MERGE (v)-[:OWNS]->(r)`,
