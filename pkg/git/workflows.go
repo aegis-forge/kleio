@@ -3,8 +3,6 @@ package git
 import (
 	"app/pkg/git/model"
 	"fmt"
-	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
-	"gopkg.in/yaml.v3"
 	"maps"
 	"os"
 	"os/exec"
@@ -12,8 +10,12 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
+	"gopkg.in/yaml.v3"
 )
 
+// DeleteRepo deletes a repository directory
 func DeleteRepo(path string) {
 	err := os.RemoveAll(path)
 
@@ -116,7 +118,7 @@ func ExtractWorkflows(url string) ([]model.File, error) {
 		}
 	}
 
-	fmt.Print("Extracting workflows from \033[31m" + repoName + "\033[0m and reading histories")
+	fmt.Print("Extracting workflows from \033[31m" + repoName + "\033[0m and reading histories\n")
 
 	_, err = os.Stat(path.Join(repoPath, ".github/workflows"))
 

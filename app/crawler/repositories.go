@@ -1,25 +1,23 @@
 package crawler
 
 import (
+	"app/pkg/github"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/gosuri/uilive"
-	"gopkg.in/ini.v1"
-	"net/http"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/gosuri/uilive"
+	"gopkg.in/ini.v1"
 )
 
-type Repo struct {
-	Url string `json:"html_url"`
-}
-
 type Repos struct {
-	Repo []Repo `json:"items"`
+	Repo []struct {
+		Url string `json:"html_url"`
+	} `json:"items"`
 }
 
 // writeToFile takes all the retrieved URLs and saves them in a file
@@ -49,9 +47,8 @@ func writeToFile(urls []string) error {
 }
 
 // GetTopRepositories saves all retrieved top repository URLs to a file
-func GetTopRepositories(config *ini.Section) error {
+func getTopRepositories(config *ini.Section) error {
 	var urls []string
-	client := &http.Client{}
 
 	ghToken := config.Key("TOKEN").String()
 	ghPageSize, err := config.Key("SIZE").Int()
@@ -66,28 +63,21 @@ func GetTopRepositories(config *ini.Section) error {
 
 	i := 1
 
-	ghQuery := "https://api.github.com/search/repositories?q=stars:>1000&sort:stars&per_page=" + strconv.Itoa(ghPageSize)
-
 	for page := range ghPages {
-		req, err := http.NewRequest("GET", ghQuery+"&page="+strconv.Itoa(page), nil)
+		url := fmt.Sprintf(
+			"search/repositories?q=stars:>1000&sort:stars&per_page=%s&page=%s",
+			strconv.Itoa(ghPageSize),
+			strconv.Itoa(page),
+		)
+
+		res, err := github.PerformApiCall(url, ghToken, nil)
 
 		if err != nil {
 			return err
-		}
-
-		req.Header.Set("Authorization", "Bearer "+ghToken)
-		res, err := client.Do(req)
-
-		if err != nil {
-			return err
-		}
-
-		if res.StatusCode != http.StatusOK {
-			return errors.New("status code: " + res.Status)
 		}
 
 		var repos Repos
-		err = json.NewDecoder(res.Body).Decode(&repos)
+		err = json.NewDecoder(res).Decode(&repos)
 
 		if err != nil {
 			return err

@@ -2,10 +2,12 @@ package main
 
 import (
 	"app/app/crawler"
-	"app/app/helpers"
+	"fmt"
 )
 
 func main() {
-	neoDriver, neoCtx := helpers.Initialize()
+	neoDriver, neoCtx := crawler.Initialize()
 	crawler.ExtractWorkflows(neoDriver, neoCtx)
+
+	fmt.Println("All Done")
 }

@@ -1,21 +1,23 @@
-package helpers
+package crawler
 
 import (
-	"app/app/crawler"
 	"app/app/database"
+	"app/app/helpers"
 	"context"
 	"fmt"
-	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"os"
 	"path"
 	"runtime"
+
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
+// Initialize initializes the configuration file, db, and repositories' URLs
 func Initialize() (neo4j.DriverWithContext, context.Context) {
 	fmt.Println("\u001B[37m[INIT]\u001B[0m \u001B[33mStarting initialization step")
 
 	// Read config file
-	config, err := ReadConfig()
+	config, err := helpers.ReadConfig()
 
 	if err != nil {
 		panic(err)
@@ -33,7 +35,7 @@ func Initialize() (neo4j.DriverWithContext, context.Context) {
 	reposPath := path.Join(path.Dir(filename), "../../out/repositories.txt")
 
 	if _, err = os.Stat(reposPath); os.IsNotExist(err) {
-		if err = crawler.GetTopRepositories(config.Section("GITHUB")); err != nil {
+		if err = getTopRepositories(config.Section("GITHUB")); err != nil {
 			panic(err)
 		}
 	}
