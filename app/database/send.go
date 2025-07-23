@@ -175,7 +175,7 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 	// Retrieve all the commits of a workflow and compute the syntactical diff between them
 	commits := ExecuteQueryWithRetNeo(
 		`MATCH (:Workflow {full_name: $workflow})-[PUSHES]->(c:Commit)
-		RETURN c.full_name, c.content`,
+		RETURN c.full_name, c.content, c.date`,
 		map[string]any{
 			"workflow": workflowFull,
 		},
@@ -189,6 +189,12 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 		
 		precFile, _ := value.Get("c.full_name")
 		succFile, _ := commits[index+1].Get("c.full_name")
+		
+		precDateRaw, _ := value.Get("c.date")
+		succDateRaw, _ := commits[index+1].Get("c.date")
+		
+		precDate := precDateRaw.(neo4j.LocalDateTime).Time()
+		succDate := succDateRaw.(neo4j.LocalDateTime).Time()
 		
 		precCommit, _ := value.Get("c.content")
 		succCommit, _ := commits[index+1].Get("c.content")
@@ -216,11 +222,12 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 		ExecuteQueryNeo(
 			`MATCH (c1:Commit {full_name: $commit1})
 			MATCH (c2:Commit {full_name: $commit2})
-			MERGE (c1)-[:CHANGED_TO {diff: $diff}]->(c2)`,
+			MERGE (c1)-[:CHANGED_TO {diff: $diff, delta: $delta}]->(c2)`,
 			map[string]any{
 				"commit1": precFile,
 				"commit2": succFile,
-				"diff": string(out),
+				"diff": strings.TrimSpace(string(out)),
+				"delta": succDate.Sub(precDate).Seconds(),
 			},
 			driver, ctx)
 	}

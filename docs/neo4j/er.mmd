@@ -2,13 +2,13 @@
 title: Neo4j ER Diagram
 ---
 erDiagram
-    VULNERABILITY {
-        string id PK
-        string cwe
-        string cve
-        string cvss
-        string severity
-    }
+    %% VULNERABILITY {
+    %%     string id PK
+    %%     string cwe
+    %%     string cve
+    %%     string cvss
+    %%     string severity
+    %% }
 
     VERSION {
         string id PK
@@ -26,7 +26,7 @@ erDiagram
 
     COMMIT {
         string id PK
-        string date
+        time date
         string full_name
         string name
         string content
@@ -51,7 +51,7 @@ erDiagram
         string name
     }
 
-    COMMIT }|--o{ VULNERABILITY : HAS
+    %% COMMIT }|--o{ VULNERABILITY : HAS
     VERSION }|--|{ COMMIT : PUSHES
     COMPONENT ||--|{ VERSION : DEPLOYS
     WORKFLOW ||--|{ COMMIT : PUSHES
@@ -67,6 +67,7 @@ erDiagram
 
     CHANGED_TO {
         string diff
+        int delta
     }
 
     COMMIT_1 }o--|| USES : ""

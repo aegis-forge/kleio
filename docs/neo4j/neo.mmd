@@ -9,7 +9,7 @@ flowchart LR
     COMMIT((Commit))
     COMPONENT((Component))
     VERSION((Version))
-    VUNLNERABILITY((Vulnerability))
+    %% VUNLNERABILITY((Vulnerability))
 
     VENDOR -->|OWNS| REPOSITORY
     VENDOR -->|PUBLISHES| COMPONENT
@@ -17,7 +17,7 @@ flowchart LR
     WORKFLOW -->|PUSHES| COMMIT
     COMPONENT -->|DEPLOYS| VERSION
     VERSION -->|PUSHES| COMMIT
-    COMMIT -->|HAS| VUNLNERABILITY
+    %% COMMIT -->|HAS| VUNLNERABILITY
     
     C1((Commit_1))
     C2((Commit_2))
