@@ -1,0 +1,25 @@
+---
+title: Deployment View
+---
+
+flowchart-elk LR
+    subgraph back [Backend]
+        Crawler("Crawler")
+        Gawd("GAWD")
+
+        subgraph extract [Extractor]
+            MExtractor("Extractor <br> Middleman")
+            WExtractor("Workflow <br> Extractor")
+            AExtractor("Action <br> Extractor") 
+        end
+    end
+
+    subgraph db [Database]
+        DB@{shape: cyl, label: "Neo4j Instance"}
+    end
+
+    Crawler --- MExtractor
+    MExtractor --- DB
+    MExtractor --- WExtractor
+    MExtractor --- AExtractor
+    WExtractor --- Gawd
