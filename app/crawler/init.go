@@ -6,8 +6,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
-	"runtime"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -31,8 +29,7 @@ func Initialize() (neo4j.DriverWithContext, context.Context) {
 	}
 
 	// Retrieve top N URLs from GitHub (if file does not exist)
-	_, filename, _, _ := runtime.Caller(0)
-	reposPath := path.Join(path.Dir(filename), "../../repositories.txt")
+	reposPath := "./repositories.txt"
 
 	if _, err = os.Stat(reposPath); os.IsNotExist(err) {
 		if err = getTopRepositories(config.Section("GITHUB")); err != nil {

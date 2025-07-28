@@ -1,0 +1,65 @@
+name: kleio
+
+services:
+  backend:
+    image: kleio:latest
+    networks:
+      - backend
+    depends_on:
+      neo:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+  
+  neo:
+    image: neo4j:5.26.9
+    environment:
+      - NEO4J_AUTH=${NEO_USER}/${NEO_PASS}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j-logs:/logs
+      - neo4j-config:/config
+      - neo4j-data:/data
+      - neo4j-plugins:/plugins
+    networks:
+      - backend
+    restart: always
+    healthcheck:
+      test: wget http://localhost:7474 || exit 1
+      interval: 1s
+      timeout: 10s
+      retries: 5
+      start_period: 3s
+
+  mongo:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASS}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - backend
+    restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 1s
+      timeout: 10s
+      retries: 5
+      start_period: 3s
+
+networks:
+  backend:
+    driver: bridge
+    
+volumes:
+  neo4j-logs:
+  neo4j-config:
+  neo4j-data:
+  neo4j-plugins:
+  mongodb-data:
+  

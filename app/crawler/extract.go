@@ -6,6 +6,7 @@ import (
 	"app/pkg/git"
 	"app/pkg/git/model"
 	"app/pkg/github"
+	"app/pkg/progress"
 	"bufio"
 	"context"
 	"fmt"
@@ -23,23 +24,31 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context)
 	if err != nil {
 		panic(err)
 	}
-	
-	f, err := os.Open("../repositories.txt")
+
+	f, err := os.Open("./repositories.txt")
 
 	if err != nil {
 		panic(err)
 	}
 
+	repositories := []string{}
 	scanner := bufio.NewScanner(f)
 
 	for scanner.Scan() {
-		section, err := config.GetSection("GENERAL")
-		
-		if err != nil {
-			panic(err)
-		}
-		
-		url := scanner.Text()
+		repositories = append(repositories, scanner.Text())
+	}
+
+	section, err := config.GetSection("GENERAL")
+	progressBar := progress.NewPBar()
+	progressBar.Total = uint16(len(repositories))
+
+	if err != nil {
+		panic(err)
+	}
+
+	for index, url := range repositories {
+		progressBar.RenderPBar(index)
+
 		// Extract all workflows from repository
 		workflows, err := git.ExtractWorkflows(url, section)
 
@@ -72,4 +81,6 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context)
 		// Save repo to neo4j
 		database.SendToNeo(repo, neoDriver, neoCtx)
 	}
+
+	progressBar.CleanUp()
 }

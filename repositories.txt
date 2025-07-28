@@ -1,10 +1,1 @@
-https://github.com/freeCodeCamp/freeCodeCamp
-https://github.com/codecrafters-io/build-your-own-x
-https://github.com/sindresorhus/awesome
-https://github.com/EbookFoundation/free-programming-books
-https://github.com/public-apis/public-apis
-https://github.com/kamranahmedse/developer-roadmap
-https://github.com/jwasham/coding-interview-university
-https://github.com/donnemartin/system-design-primer
-https://github.com/996icu/996.ICU
-https://github.com/vinta/awesome-python
+https://github.com/edoriggio/www

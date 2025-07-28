@@ -10,7 +10,7 @@ func main() {
 	neoDriver, neoCtx := crawler.Initialize()
 	crawler.ExtractWorkflows(neoDriver, neoCtx)
 	
-	git.DeleteRepo("../tmp")
+	git.DeleteRepo("./tmp")
 
 	fmt.Println("All Done")
 }

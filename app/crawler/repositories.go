@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -22,8 +20,7 @@ type Repos struct {
 
 // writeToFile takes all the retrieved URLs and saves them in a file
 func writeToFile(urls []string) error {
-	_, filename, _, _ := runtime.Caller(0)
-	file, err := os.Create(path.Join(path.Dir(filename), "../../repositories.txt"))
+	file, err := os.Create("./repositories.txt")
 
 	if err != nil {
 		return err

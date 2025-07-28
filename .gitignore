@@ -17,6 +17,7 @@ coverage.*
 *.coverprofile
 profile.cov
 config.ini
+kleio
 
 dist/
 tmp/
@@ -30,6 +31,8 @@ go.work.sum
 
 # env file
 .env
+*.config.ini
+!template.config.ini
 
 # Editor/IDE
 .DS_Store

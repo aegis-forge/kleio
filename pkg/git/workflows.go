@@ -160,7 +160,7 @@ func ExtractWorkflows(url string, config *ini.Section) ([]model.File, error) {
 		}
 	}
 
-	DeleteRepo(repoPath)
+	// DeleteRepo(repoPath)
 
 	return workflows, nil
 }

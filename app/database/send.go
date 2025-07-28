@@ -175,6 +175,7 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 	// Retrieve all the commits of a workflow and compute the syntactical diff between them
 	commits := ExecuteQueryWithRetNeo(
 		`MATCH (:Workflow {full_name: $workflow})-[PUSHES]->(c:Commit)
+		ORDER BY c.date
 		RETURN c.full_name, c.content, c.date`,
 		map[string]any{
 			"workflow": workflowFull,
@@ -208,15 +209,16 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 		
 		cmd := exec.Command(
 			"/bin/bash", "-c", 
-			fmt.Sprintf("gawd --json <(echo \"%s\") <(echo \"%s\")",
-				strings.ReplaceAll(strings.ReplaceAll(string(precContent), "$", "\\$"), "\"", "\\\""),
-				strings.ReplaceAll(strings.ReplaceAll(string(succContent), "$", "\\$"), "\"", "\\\""),
+			fmt.Sprintf("gawd --json <(echo '%s') <(echo '%s')",
+				strings.ReplaceAll(string(precContent), "'", "'\\''"),
+				strings.ReplaceAll(string(succContent), "'", "'\\''"),
 			),
 		)
+		
 		out, err := cmd.Output()
 		
 		if err != nil {
-			panic(err)
+			// panic(err)
 		}
 		
 		ExecuteQueryNeo(

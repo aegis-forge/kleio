@@ -279,7 +279,16 @@ func GetActionsCommits(repo model.Repository, config *ini.Section, driver neo4j.
 	for _, workflow := range repo.GetFiles() {
 		for _, commit := range workflow.GetHistory() {
 			for _, component := range commit.GetComponents() {
+				if component.GetCategory() != "action" {
+					continue
+				}
+
 				action := component.GetName()
+
+				if len(strings.Split(action, "/")) > 2 {
+					actionSplit := strings.Split(action, "/")
+					action = strings.Join(actionSplit[:len(actionSplit)-1], "/")
+				}
 
 				// Check if Action exists in database
 				if res := database.ExecuteQueryWithRetNeo(

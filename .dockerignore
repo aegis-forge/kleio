@@ -1,0 +1,16 @@
+README.md
+assets/
+docs/
+
+# docker
+compose.yml
+dockerfile
+
+# templates
+template.config.ini
+template.env
+
+# git
+.git
+.gitattributes
+.gitignore
