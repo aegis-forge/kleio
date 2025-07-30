@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // ExecuteQueryNeo sends the actual query, together with the content, to neo4j
@@ -23,5 +25,21 @@ func ExecuteQueryWithRetNeo(query string, content map[string]any, driver neo4j.D
 		panic(err)
 	} else {
 		return result.Records
+	}
+}
+
+// ExecuteQueryMongo executes the selected query on the respective mongodb collection
+func ExecuteQueryMongo(content any, collection string, typz string, client mongo.Database) string {
+	switch typz {
+	case "insert":
+		res, err := client.Collection(collection).InsertOne(context.Background(), content)
+
+		if err != nil {
+			panic(err)
+		}
+
+		return res.InsertedID.(bson.ObjectID).Hex()
+	default:
+		panic("the type of operation does not exist")
 	}
 }

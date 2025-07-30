@@ -70,7 +70,7 @@ erDiagram
         int delta
     }
 
-    COMMIT_1 }o--|| USES : ""
-    USES ||--o{ COMMIT_2 : ""
-    COMMIT_3 |o--|| CHANGED_TO : ""
-    CHANGED_TO ||--o| COMMIT_4 : ""
+    "WORKFLOW COMMIT" }o--|| USES : ""
+    USES ||--o{ "WORKFLOW/VERSION COMMIT or VERSION" : ""
+    "WORKFLOW COMMIT 1" |o--|| CHANGED_TO : ""
+    CHANGED_TO ||--o| "WORKFLOW COMMIT 2" : ""

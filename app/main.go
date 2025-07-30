@@ -7,9 +7,9 @@ import (
 )
 
 func main() {
-	neoDriver, neoCtx := crawler.Initialize()
-	crawler.ExtractWorkflows(neoDriver, neoCtx)
-	
+	neoDriver, neoCtx, mongoClient := crawler.Initialize()
+	crawler.ExtractWorkflows(neoDriver, neoCtx, mongoClient)
+
 	git.DeleteRepo("./tmp")
 
 	fmt.Println("All Done")

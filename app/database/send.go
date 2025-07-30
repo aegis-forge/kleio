@@ -1,6 +1,7 @@
 package database
 
 import (
+	"app/app/helpers"
 	"app/pkg/git/model"
 	"context"
 	"encoding/base64"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gosuri/uilive"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // addVersion sends the version nodes and relationships to neo4j
@@ -52,6 +54,34 @@ func addVersion(version model.Version, component string, commit string, date tim
 				return
 			}
 		}
+	} else if _, ok := strings.CutPrefix(component, "docker://"); ok {
+		componentSplit := strings.Split(strings.TrimPrefix(component, "docker://"), "/")
+		providerName := componentSplit[0]
+		componentName := strings.Join(strings.Split(strings.Join(componentSplit[1:], "/"), ":")[:1], "")
+
+		ExecuteQueryNeo(
+			`MATCH (co:Commit {full_name: $commit})
+			MERGE (v:Vendor {name: $vendor})
+			MERGE (c:Component {full_name: $component, name: $name, type: $type, provider: $provider})
+			MERGE (ve:Version {full_name: $version, name: $semver})
+			MERGE (v)-[:PUBLISHES]->(c)
+			MERGE (c)-[:DEPLOYS]->(ve)
+			MERGE (co)-[:USES {times: $times, version: $usemver, type: $utype}]->(ve)`,
+			map[string]any{
+				"vendor":    strings.Split(componentName, "/")[0],
+				"component": componentName,
+				"name":      strings.Split(componentName, "/")[1],
+				"type":      "container",
+				"provider":  providerName,
+				"version":   fmt.Sprintf("%s/%s", componentName, name),
+				"semver":    name,
+				"commit":    commit,
+				"times":     version.GetUses(),
+				"usemver":   version.GetVersionString(),
+				"utype":     version.GetVersionType(),
+			},
+			driver, ctx,
+		)
 	} else {
 		if res := ExecuteQueryWithRetNeo(
 			`MATCH (v:Commit {full_name: $version})
@@ -76,7 +106,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 				driver, ctx,
 			)
 		} else {
-			for _, value := range ExecuteQueryWithRetNeo(
+			commits := ExecuteQueryWithRetNeo(
 				`MATCH (:Component {full_name: $component})-[:DEPLOYS]->(:Version {full_name: $version})-[:PUSHES]->(c:Commit)
 				ORDER BY c.date DESC
 				RETURN c.full_name, c.date`,
@@ -85,16 +115,47 @@ func addVersion(version model.Version, component string, commit string, date tim
 					"version":   fmt.Sprintf("%s/%s", component, name),
 				},
 				driver, ctx,
-			) {
+			)
+
+			if len(commits) == 0 {
+				ExecuteQueryNeo(
+					`MATCH (c:Component {full_name: $component})
+					MATCH (co:Commit {full_name: $commit})
+					MERGE (v:Version {full_name: $version, name: $vsemver})
+					MERGE (ve:Commit {full_name: $vcommit, name: $hash})
+					MERGE (c)-[:DEPLOYS]->(v)-[:PUSHES]->(ve)
+					MERGE (co)-[:USES {times: $times, version: $semver, type: $type}]->(ve)`,
+					map[string]any{
+						"component": component,
+						"commit":    commit,
+						"version":   fmt.Sprintf("%s/%s", component, name),
+						"vsemver":   name,
+						"vcommit":   fmt.Sprintf("%s/%s/%s", component, name, name),
+						"hash":      name,
+						"times":     version.GetUses(),
+						"semver":    version.GetVersionString(),
+						"type":      version.GetVersionType(),
+					},
+					driver, ctx,
+				)
+
+				return
+			}
+
+			for _, value := range commits {
+				workflowNameRaw, _ := value.Get("c.full_name")
 				workflowDateRaw, _ := value.Get("c.date")
-				workflowDate := workflowDateRaw.(neo4j.LocalDateTime).Time()
 
-				if date.After(workflowDate) {
-					workflowNameRaw, _ := value.Get("c.full_name")
-					workflowName := workflowNameRaw.(string)
+				workflowName := workflowNameRaw.(string)
+				workflowDate := workflowDateRaw
 
-					ExecuteQueryNeo(`
-						MATCH (v:Commit {full_name: $version})
+				if workflowDateRaw != nil {
+					workflowDate = workflowDateRaw.(neo4j.LocalDateTime).Time()
+				}
+
+				if workflowDate == nil || date.After(workflowDate.(time.Time)) {
+					ExecuteQueryNeo(
+						`MATCH (v:Commit {full_name: $version})
 						MATCH (c:Commit {full_name: $commit})
 						MERGE (c)-[:USES {times: $times, version: $semver, type: $type}]->(v)`,
 						map[string]any{
@@ -152,7 +213,7 @@ func addCommits(commit model.Commit, workflow string, driver neo4j.DriverWithCon
 }
 
 // addWorkflows sends the workflow nodes and relationships to neo4j
-func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithContext, ctx context.Context) {
+func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithContext, ctx context.Context, client mongo.Database) {
 	workflowFull := fmt.Sprintf("%s/%s", repo, workflow.GetFilename())
 
 	ExecuteQueryNeo(
@@ -187,16 +248,16 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 		if index == len(commits)-1 {
 			continue
 		}
-		
+
 		precFile, _ := value.Get("c.full_name")
 		succFile, _ := commits[index+1].Get("c.full_name")
-		
+
 		precDateRaw, _ := value.Get("c.date")
 		succDateRaw, _ := commits[index+1].Get("c.date")
-		
+
 		precDate := precDateRaw.(neo4j.LocalDateTime).Time()
 		succDate := succDateRaw.(neo4j.LocalDateTime).Time()
-		
+
 		precCommit, _ := value.Get("c.content")
 		succCommit, _ := commits[index+1].Get("c.content")
 
@@ -206,21 +267,23 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 		if err != nil {
 			panic(err)
 		}
-		
+
 		cmd := exec.Command(
-			"/bin/bash", "-c", 
+			"/bin/bash", "-c",
 			fmt.Sprintf("gawd --json <(echo '%s') <(echo '%s')",
 				strings.ReplaceAll(string(precContent), "'", "'\\''"),
 				strings.ReplaceAll(string(succContent), "'", "'\\''"),
 			),
 		)
-		
+
 		out, err := cmd.Output()
-		
+
 		if err != nil {
-			// panic(err)
+			panic(err)
 		}
-		
+
+		mongoId := ExecuteQueryMongo(helpers.GroupByPath(out), "diffs", "insert", client)
+
 		ExecuteQueryNeo(
 			`MATCH (c1:Commit {full_name: $commit1})
 			MATCH (c2:Commit {full_name: $commit2})
@@ -228,15 +291,15 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 			map[string]any{
 				"commit1": precFile,
 				"commit2": succFile,
-				"diff": strings.TrimSpace(string(out)),
-				"delta": succDate.Sub(precDate).Seconds(),
+				"diff":    mongoId,
+				"delta":   succDate.Sub(precDate).Seconds(),
 			},
 			driver, ctx)
 	}
 }
 
 // SendToNeo adds the given repository to neo4j
-func SendToNeo(repository model.Repository, driver neo4j.DriverWithContext, ctx context.Context) {
+func SendToDB(repository model.Repository, driver neo4j.DriverWithContext, ctx context.Context, client mongo.Database) {
 	vendor := strings.Split(repository.GetName(), "/")[0]
 	repo := strings.Split(repository.GetName(), "/")[1]
 
@@ -260,7 +323,7 @@ func SendToNeo(repository model.Repository, driver neo4j.DriverWithContext, ctx 
 	writer.Start()
 
 	for i, workflow := range repository.GetFiles() {
-		addWorkflows(workflow, repository.GetName(), driver, ctx)
+		addWorkflows(workflow, repository.GetName(), driver, ctx, client)
 
 		_, _ = fmt.Fprintf(
 			writer,

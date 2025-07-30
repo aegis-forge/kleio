@@ -8,10 +8,11 @@ import (
 	"os"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // Initialize initializes the configuration file, db, and repositories' URLs
-func Initialize() (neo4j.DriverWithContext, context.Context) {
+func Initialize() (neo4j.DriverWithContext, context.Context, mongo.Database) {
 	fmt.Println("\u001B[37m[INIT]\u001B[0m \u001B[33mStarting initialization step")
 
 	// Read config file
@@ -27,6 +28,13 @@ func Initialize() (neo4j.DriverWithContext, context.Context) {
 	if err != nil {
 		panic(err)
 	}
+	
+	// Connect to MongoDB
+	mongoClient, err := database.ConnectionToMongo(config.Section("MONGODB"))
+	
+	if err != nil {
+		panic(err)
+	}
 
 	// Retrieve top N URLs from GitHub (if file does not exist)
 	reposPath := "./repositories.txt"
@@ -39,5 +47,5 @@ func Initialize() (neo4j.DriverWithContext, context.Context) {
 
 	fmt.Print("\u001B[37m[INIT]\u001B[0m \u001B[32mInitialization complete\u001B[0m\n\n")
 
-	return neoDriver, neoCtx
+	return neoDriver, neoCtx, mongoClient
 }

@@ -15,11 +15,13 @@ flowchart-elk LR
     end
 
     subgraph db [Database]
-        DB@{shape: cyl, label: "Neo4j Instance"}
+        Neo@{shape: cyl, label: "Neo4j Instance"}
+        Mongo@{shape: cyl, label: "MongoDB Instance"}
     end
 
     Crawler --- MExtractor
-    MExtractor --- DB
+    MExtractor --- Neo
+    MExtractor --- Mongo
     MExtractor --- WExtractor
     MExtractor --- AExtractor
     WExtractor --- Gawd

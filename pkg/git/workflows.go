@@ -30,9 +30,15 @@ func buildComponent(cType string, sep string, component string, components map[s
 	componentSplit := strings.Split(component, sep)
 	componentName := componentSplit[0]
 	componentVersion := ""
+	provider := "github"
 
 	if len(componentSplit) == 2 {
 		componentVersion = componentSplit[1]
+	}
+
+	if cType == "docker" {
+		componentName = "docker://" + component
+		provider = strings.Split(componentName, "/")[0]
 	}
 
 	if _, ok := components[componentName]; !ok {
@@ -40,7 +46,7 @@ func buildComponent(cType string, sep string, component string, components map[s
 		versionStruct := model.Version{}
 
 		versionStruct.Init(componentVersion)
-		componentStruct.Init(componentName, cType, []*model.Version{&versionStruct})
+		componentStruct.Init(componentName, cType, provider, []*model.Version{&versionStruct})
 
 		components[componentName] = &componentStruct
 	} else {

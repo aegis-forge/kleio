@@ -32,11 +32,10 @@ Before running Kleio, please make sure that the following requirements are satis
 - MongoDB @v6.0
 - [GAWD (modified)](https://github.com/aegis-forge/gawd) @v1.1.1 [↩](#installing-modified-gawd)
 
-After having installed all the requirements, go ahead and build and run Kleio by using the following commands from the root of this repository:
+After having installed all the requirements, go ahead and compile and run Kleio by using the following command from the root of this repository:
 
 ```bash
-go -C ./app build -o ../kleio # Build
-./kleio # Run
+go -C ./app build -o ../kleio && ./kleio # Compile and run Kleio
 ```
 
 ## Installing Modified GAWD

@@ -1,1 +1,1 @@
-https://github.com/edoriggio/www
+https://github.com/syncthing/syncthing

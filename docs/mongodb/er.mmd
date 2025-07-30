@@ -1,0 +1,17 @@
+---
+title: MongoDB ER Diagram
+---
+erDiagram
+    DIFF {
+        string MongoID PK
+    }
+
+    PATH {
+        string name PK
+        string type
+        string path_mod
+        string old
+        string new
+    }
+
+    DIFF ||--o{ PATH : ""

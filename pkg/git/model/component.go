@@ -10,11 +10,12 @@ import "regexp"
 type Component struct {
 	name     string
 	category string
+	provider string
 	history  []*Version
 }
 
 // Init initializes the [Component] struct
-func (c *Component) Init(name string, category string, history []*Version) {
+func (c *Component) Init(name string, category string, provider string, history []*Version) {
 	c.name = name
 	c.category = category
 	c.history = history
@@ -28,6 +29,11 @@ func (c *Component) GetName() string {
 // GetCategory returns the name of the [Component] struct
 func (c *Component) GetCategory() string {
 	return c.category
+}
+
+// GetProvider returns the provider of the [Component] struct
+func (c *Component) GetProvider() string {
+	return c.provider
 }
 
 // GetHistory returns the versions of the [Component] struct

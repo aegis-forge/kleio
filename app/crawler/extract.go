@@ -6,7 +6,6 @@ import (
 	"app/pkg/git"
 	"app/pkg/git/model"
 	"app/pkg/github"
-	"app/pkg/progress"
 	"bufio"
 	"context"
 	"fmt"
@@ -14,10 +13,11 @@ import (
 	"strings"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // ExtractWorkflows extracts the workflows from the Repository
-func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context) {
+func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context, mongoClient mongo.Database) {
 	// Read config
 	config, err := helpers.ReadConfig()
 
@@ -39,15 +39,16 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context)
 	}
 
 	section, err := config.GetSection("GENERAL")
-	progressBar := progress.NewPBar()
-	progressBar.Total = uint16(len(repositories))
+
+	// progressBar := progress.NewPBar()
+	// progressBar.Total = uint16(len(repositories))
 
 	if err != nil {
 		panic(err)
 	}
 
-	for index, url := range repositories {
-		progressBar.RenderPBar(index)
+	for _, url := range repositories {
+		// progressBar.RenderPBar(index)
 
 		// Extract all workflows from repository
 		workflows, err := git.ExtractWorkflows(url, section)
@@ -78,9 +79,9 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context)
 		// Retrieve Actions Commits
 		github.GetActionsCommits(repo, config.Section("GITHUB"), neoDriver, neoCtx)
 
-		// Save repo to neo4j
-		database.SendToNeo(repo, neoDriver, neoCtx)
+		// Save repo to databases
+		database.SendToDB(repo, neoDriver, neoCtx, mongoClient)
 	}
 
-	progressBar.CleanUp()
+	// progressBar.CleanUp()
 }

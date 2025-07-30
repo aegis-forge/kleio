@@ -19,10 +19,10 @@ flowchart LR
     VERSION -->|PUSHES| COMMIT
     %% COMMIT -->|HAS| VUNLNERABILITY
     
-    C1((Commit_1))
-    C2((Commit_2))
-    C3((Commit_3))
-    C4((Commit_4))
+    C1((Workflow<br>Commit))
+    C2((Workflow/Version<br>Commit or Version))
+    C3((Workflow<br>Commit 1))
+    C4((Workflow<br>Commit 2))
 
     C1 -->|USES| C2
     C3 -->|CHANGED_TO| C4

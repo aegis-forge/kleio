@@ -213,7 +213,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 	for version, hashes := range versionToCommitMap {
 		database.ExecuteQueryNeo(
 			`MERGE (v:Vendor {name: $vendor})
-			MERGE (c:Component {full_name: $component, name: $action, type: "action"})
+			MERGE (c:Component {full_name: $component, name: $action, type: "action", provider: "github"})
 			MERGE (ve:Version {full_name: $version, name: $semver})
 			MERGE (v)-[:PUBLISHES]->(c)
 			MERGE (c)-[:DEPLOYS]->(ve)`,
