@@ -64,7 +64,7 @@ func getTopRepositories(config *ini.Section) error {
 		url := fmt.Sprintf(
 			"search/repositories?q=stars:>1000&sort:stars&per_page=%s&page=%s",
 			strconv.Itoa(ghPageSize),
-			strconv.Itoa(page),
+			strconv.Itoa(page+1),
 		)
 
 		res, err := github.PerformApiCall(url, ghToken, nil)

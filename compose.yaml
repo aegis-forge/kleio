@@ -1,5 +1,3 @@
-name: kleio
-
 services:
   backend:
     image: kleio:latest
@@ -30,7 +28,7 @@ services:
       test: wget http://localhost:7474 || exit 1
       interval: 1s
       timeout: 10s
-      retries: 5
+      retries: 10
       start_period: 3s
 
   mongo:
@@ -49,7 +47,7 @@ services:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 1s
       timeout: 10s
-      retries: 5
+      retries: 10
       start_period: 3s
 
 networks:

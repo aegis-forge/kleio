@@ -18,9 +18,11 @@ coverage.*
 profile.cov
 config.ini
 kleio
+cmd/repositories.txt
 
 dist/
 tmp/
+analysis/
 
 # Dependency directories (remove the comment below to include it)
 # vendor/

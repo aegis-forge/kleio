@@ -1,8 +1,8 @@
 package crawler
 
 import (
-	"app/app/database"
-	"app/app/helpers"
+	"app/cmd/database"
+	"app/cmd/helpers"
 	"app/pkg/git"
 	"app/pkg/git/model"
 	"app/pkg/github"

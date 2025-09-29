@@ -1,7 +1,7 @@
 package database
 
 import (
-	"app/app/helpers"
+	"app/cmd/helpers"
 	"app/pkg/git/model"
 	"context"
 	"encoding/base64"
@@ -21,6 +21,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 	name := versionName
 
 	if strings.HasSuffix(component, ".yaml") || strings.HasSuffix(component, ".yml") {
+		// Connect to workflow
 		for _, value := range ExecuteQueryWithRetNeo(
 			`MATCH (:Workflow {full_name: $workflow})-[:PUSHED]->(c:Commit)
 			ORDER BY c.date DESC
@@ -55,6 +56,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 			}
 		}
 	} else if _, ok := strings.CutPrefix(component, "docker://"); ok {
+		// Connect to docker image
 		componentSplit := strings.Split(strings.TrimPrefix(component, "docker://"), "/")
 		providerName := componentSplit[0]
 		componentName := strings.Join(strings.Split(strings.Join(componentSplit[1:], "/"), ":")[:1], "")
@@ -83,6 +85,7 @@ func addVersion(version model.Version, component string, commit string, date tim
 			driver, ctx,
 		)
 	} else {
+		// Connect to GitHub Action
 		if res := ExecuteQueryWithRetNeo(
 			`MATCH (v:Commit {full_name: $version})
 			WITH COUNT(v) > 0 as node_v
@@ -276,29 +279,53 @@ func addWorkflows(workflow model.File, repo string, driver neo4j.DriverWithConte
 			),
 		)
 
-		out, err := cmd.Output()
+		out, err := cmd.CombinedOutput()
 
 		if err != nil {
-			panic(err)
+			fmt.Print(string(out))
+			
+			ExecuteQueryNeo(
+				`MATCH (c1:Commit {full_name: $commit1})
+				MATCH (c2:Commit {full_name: $commit2})
+				MERGE (c1)-[:CHANGED_TO {diff: "", delta: $delta}]->(c2)`,
+				map[string]any{
+					"commit1": precFile,
+					"commit2": succFile,
+					"delta":   int(succDate.Sub(precDate).Seconds()),
+				},
+				driver, ctx,
+			)
+			
+			continue
 		}
+		
+		if present := ExecuteQueryMongo(
+			fmt.Sprintf(`{"from_commit": "%s", "to_commit": "%s"}`,
+				precFile.(string), succFile.(string)),
+			"diffs", "find", client,
+		); present == "" {
+			mongoId := ExecuteQueryMongo(helpers.GroupByPath(
+				out, precFile.(string), succFile.(string)), "diffs", 
+				"insert", client,
+			)
 
-		mongoId := ExecuteQueryMongo(helpers.GroupByPath(out), "diffs", "insert", client)
-
-		ExecuteQueryNeo(
-			`MATCH (c1:Commit {full_name: $commit1})
-			MATCH (c2:Commit {full_name: $commit2})
-			MERGE (c1)-[:CHANGED_TO {diff: $diff, delta: $delta}]->(c2)`,
-			map[string]any{
-				"commit1": precFile,
-				"commit2": succFile,
-				"diff":    mongoId,
-				"delta":   succDate.Sub(precDate).Seconds(),
-			},
-			driver, ctx)
+			ExecuteQueryNeo(
+				`MATCH (c1:Commit {full_name: $commit1})
+				MATCH (c2:Commit {full_name: $commit2})
+				MERGE (c1)-[:CHANGED_TO {diff: $diff, delta: $delta}]->(c2)`,
+				map[string]any{
+					"commit1": precFile,
+					"commit2": succFile,
+					"diff":    mongoId,
+					"delta":   int(succDate.Sub(precDate).Seconds()),
+				},
+				driver, ctx,
+			)
+		}
 	}
 }
 
-// SendToNeo adds the given repository to neo4j
+// SendToDB adds the given repository to neo4j
 func SendToDB(repository model.Repository, driver neo4j.DriverWithContext, ctx context.Context, client mongo.Database) {
 	vendor := strings.Split(repository.GetName(), "/")[0]
 	repo := strings.Split(repository.GetName(), "/")[1]

@@ -1,6 +1,7 @@
 README.md
 assets/
 docs/
+queries/
 
 # docker
 compose.yml

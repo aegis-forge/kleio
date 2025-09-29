@@ -1,8 +1,8 @@
 package crawler
 
 import (
-	"app/app/database"
-	"app/app/helpers"
+	"app/cmd/database"
+	"app/cmd/helpers"
 	"context"
 	"fmt"
 	"os"

@@ -1,21 +1,29 @@
 package github
 
 import (
-	"app/app/database"
+	"app/cmd/database"
+	"app/cmd/helpers"
 	"app/pkg/git"
 	"app/pkg/git/model"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
+	"github.com/aegis-forge/cage"
 	"github.com/gosuri/uilive"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	gocvss20 "github.com/pandatix/go-cvss/20"
+	gocvss31 "github.com/pandatix/go-cvss/31"
+	gocvss40 "github.com/pandatix/go-cvss/40"
 	"gopkg.in/ini.v1"
 )
 
@@ -178,8 +186,8 @@ func pullActionRepo(action string) (string, error) {
 	return repoPath, nil
 }
 
-// getActionVersions saves all the commits, versions, components, and vendors retrieved in the Neo4j database
-func getActionVersions(action string, hashes map[string]string, repoPath string, driver neo4j.DriverWithContext, ctx context.Context) {
+// getActionVersions saves all the commits, versions, components, and vendors retrieved in the Neo4j database. It returns true if it saved at least one release
+func getActionVersions(action string, hashes map[string]string, repoPath string, driver neo4j.DriverWithContext, ctx context.Context) bool {
 	versionToCommitMap := map[string][]string{}
 	actionSplit := strings.Split(action, "/")
 
@@ -189,7 +197,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 			out, err := cmd.Output()
 
 			if err != nil {
-				panic(err)
+				break
 			}
 
 			for _, version := range strings.Split(string(out), "\n") {
@@ -208,12 +216,31 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 		}
 	}
 
-	fmt.Printf("\u001B[37m[NEO4J]\u001B[0m Saving releases")
+	writer := uilive.New()
+	writer.Start()
+
+	i := 0
 
 	for version, hashes := range versionToCommitMap {
+		i++
+
+		subtype := "composite"
+
+		if _, err := os.Stat(fmt.Sprintf("%s/package-lock.json", repoPath)); err == nil {
+			subtype = "js+lock"
+		} else if _, err := os.Stat(fmt.Sprintf("%s/package.json", repoPath)); err == nil {
+			subtype = "js"
+		}
+
+		_, _ = fmt.Fprintf(
+			writer,
+			"[ACTIONS] Saving releases [%d/%d]\n",
+			i, len(versionToCommitMap),
+		)
+
 		database.ExecuteQueryNeo(
 			`MERGE (v:Vendor {name: $vendor})
-			MERGE (c:Component {full_name: $component, name: $action, type: "action", provider: "github"})
+			MERGE (c:Component {full_name: $component, name: $action, type: "action", subtype: $subtype, provider: "github"})
 			MERGE (ve:Version {full_name: $version, name: $semver})
 			MERGE (v)-[:PUBLISHES]->(c)
 			MERGE (c)-[:DEPLOYS]->(ve)`,
@@ -222,6 +249,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 				"component": action,
 				"action":    actionSplit[1],
 				"version":   action + "/" + version,
+				"subtype":   subtype,
 				"semver":    version,
 			},
 			driver, ctx,
@@ -249,8 +277,6 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 			date, err := time.Parse("2006-01-02 15:04:05 -0700", strings.TrimSpace(dateRaw))
 
 			if err != nil {
-				fmt.Println(hash)
-				fmt.Println(string(out))
 				panic(err)
 			}
 
@@ -266,15 +292,262 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 				},
 				driver, ctx,
 			)
+
+			if vulns, err := getActionVulnerabilities(actionSplit[0], actionSplit[1], version, date); err == nil {
+				for _, vuln := range vulns {
+					database.ExecuteQueryNeo(
+						`MATCH (c:Commit {full_name: $commit})
+						MERGE (v:Vulnerability {id: $id, cve: $cve, cwes: $cwes, cvss: $cvss, published: $published})
+						MERGE (c)-[:VULNERABLE_TO]->(v)`,
+						map[string]any{
+							"commit":    action + "/" + hash,
+							"id":        vuln.Id,
+							"cve":       vuln.Cve,
+							"cwes":      vuln.Cwes,
+							"cvss":      vuln.Cvss,
+							"published": vuln.Published,
+						},
+						driver, ctx,
+					)
+				}
+			}
+
+			cmd = exec.Command("git", "-C", repoPath, "show", fmt.Sprintf("%s:package-lock.json", hash))
+			out, err = cmd.Output()
+
+			if err == nil {
+				getTransitiveDependenciesAndVulnerabilities(out, action+"/"+hash, driver, ctx)
+			}
 		}
 	}
 
-	fmt.Print(" \u001B[32m✓\u001B[0m\n\n")
+	_, _ = fmt.Fprintf(
+		writer.Bypass(),
+		"[ACTIONS] Saving releases \u001B[32m✓\u001B[0m\n",
+	)
+
+	time.Sleep(time.Millisecond * 25)
+	writer.Stop()
+
+	if len(versionToCommitMap) == 0 {
+		return false
+	}
+
+	return true
+}
+
+func getTransitiveDependenciesAndVulnerabilities(lock []byte, commit string, driver neo4j.DriverWithContext, ctx context.Context) {
+	type Lock struct {
+		Packages map[string]struct {
+			Version string `json:"version"`
+		} `json:"packages"`
+		Dependencies map[string]struct {
+			Version string `json:"version"`
+		} `json:"dependencies"`
+	}
+
+	var jsonLock Lock
+	err := json.Unmarshal(lock, &jsonLock)
+
+	if err != nil {
+		return
+	}
+
+	it := jsonLock.Packages
+
+	if it == nil {
+		it = jsonLock.Dependencies
+	}
+
+	writer := uilive.New()
+	writer.Start()
+
+	i := 0
+
+	for name, version := range it {
+		if name == "" {
+			continue
+		}
+
+		i++
+
+		_, _ = fmt.Fprintf(
+			writer,
+			"[ACTIONS] Saving transitive dependencies [%d/%d]\n",
+			i, len(it),
+		)
+
+		nodeModules := strings.Split(name, "node_modules/")
+		cleanedName := nodeModules[len(nodeModules)-1]
+
+		if res := database.ExecuteQueryWithRetNeo(
+			`MATCH (v:Version {full_name: $version})
+			WITH COUNT(v) > 0 as node_v
+			RETURN node_v`,
+			map[string]any{
+				"version": cleanedName + "/" + version.Version,
+			},
+			driver, ctx,
+		); res[0].Values[0] == true {
+			database.ExecuteQueryNeo(
+				`MATCH (c:Commit {full_name: $commit})
+				MATCH (v:Version {full_name: $version})
+				MERGE (c)-[:USES]->(v)`,
+				map[string]any{
+					"commit":  commit,
+					"version": cleanedName + "/" + version.Version,
+				},
+				driver, ctx,
+			)
+		} else {
+			database.ExecuteQueryNeo(
+				`MATCH (c:Commit {full_name: $commit})
+				MERGE (co:Component {full_name: $component, name: $cname, type: "package", provider: "npm"})
+				MERGE (v:Version {full_name: $version, name: $vname})
+				MERGE (co)-[:DEPLOYS]->(v)
+				MERGE (c)-[:USES]->(v)`,
+				map[string]any{
+					"commit":    commit,
+					"component": cleanedName,
+					"cname":     cleanedName,
+					"version":   cleanedName + "/" + version.Version,
+					"vname":     version.Version,
+				},
+				driver, ctx,
+			)
+
+			osv_url := "https://api.osv.dev/v1/query"
+			body := map[string]any{
+				"package": map[string]string{
+					"purl": fmt.Sprintf("pkg:npm/%s@%s", cleanedName, version.Version),
+				},
+			}
+
+			jsonBody, err := json.Marshal(body)
+
+			if err != nil {
+				continue
+			}
+
+			res, err := http.Post(osv_url, "application/json", bytes.NewBuffer(jsonBody))
+
+			if err != nil {
+				continue
+			}
+
+			defer res.Body.Close()
+
+			type osvVuln struct {
+				Vulns []struct {
+					Id        string   `json:"id"`
+					Aliases   []string `json:"aliases"`
+					Published string   `json:"published"`
+					Advisory  struct {
+						CWEs []string `json:"cwe_ids"`
+					} `json:"database_specific"`
+					Severity []struct {
+						Type  string `json:"type"`
+						Score string `json:"score"`
+					} `json:"severity"`
+				} `json:"vulns"`
+			}
+
+			var ovsVulns osvVuln
+
+			json.NewDecoder(res.Body).Decode(&ovsVulns)
+
+			for _, vuln := range ovsVulns.Vulns {
+				cve := ""
+				cvss := 0.0
+
+				if len(vuln.Aliases) > 0 {
+					cve = vuln.Aliases[0]
+				}
+
+				if len(vuln.Severity) > 0 {
+					vector := vuln.Severity[0].Score
+
+					switch vuln.Severity[0].Type {
+					case "CVSS_V3":
+						cvssObj, err := gocvss31.ParseVector(vector)
+
+						if err != nil {
+							cvss = 0.0
+						} else {
+							cvss = cvssObj.BaseScore()
+						}
+					case "CVSS_V4":
+						cvssObj, err := gocvss40.ParseVector(vector)
+
+						if err != nil {
+							cvss = 0.0
+						} else {
+							cvss = cvssObj.Score()
+						}
+					default:
+						cvssObj, err := gocvss20.ParseVector(vector)
+
+						if err != nil {
+							cvss = 0.0
+						} else {
+							cvss = cvssObj.BaseScore()
+						}
+					}
+				}
+
+				database.ExecuteQueryNeo(
+					`MATCH (c:Version {full_name: $version})
+					MERGE (v:Vulnerability {id: $id, cve: $cve, cwes: $cwes, cvss: $cvss, published: $published})
+					MERGE (c)-[:VULNERABLE_TO]->(v)`,
+					map[string]any{
+						"version":   cleanedName + "/" + version.Version,
+						"id":        vuln.Id,
+						"cve":       cve,
+						"cwes":      vuln.Advisory.CWEs,
+						"cvss":      cvss,
+						"published": vuln.Published,
+					},
+					driver, ctx,
+				)
+			}
+		}
+	}
+
+	_, _ = fmt.Fprintf(
+		writer.Bypass(),
+		"[ACTIONS] Saving transitive dependencies \u001B[32m✓\u001B[0m\n",
+	)
+}
+
+func getActionVulnerabilities(vendor, action, version string, time time.Time) ([]cage.Vulnerability, error) {
+	semver, err := cage.NewSemver(version)
+
+	if err != nil {
+		return nil, err
+	}
+
+	pkg, err := cage.NewPackage(vendor, action, time, semver)
+
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := helpers.ReadConfig()
+
+	if err != nil {
+		return nil, err
+	}
+
+	gh := cage.Github{}
+	gh.SetToken(token.Section("GITHUB").Key("TOKEN_VULNS").String())
+
+	return pkg.IsVulnerable([]cage.Source{gh})
 }
 
 // GetActionsCommits retrieves all the versions and commits of all the Actions present in the repositories' workflows
 func GetActionsCommits(repo model.Repository, config *ini.Section, driver neo4j.DriverWithContext, ctx context.Context) {
 	bearer := config.Key("TOKEN").String()
+	errorActions := []string{}
 
 	for _, workflow := range repo.GetFiles() {
 		for _, commit := range workflow.GetHistory() {
@@ -284,6 +557,10 @@ func GetActionsCommits(repo model.Repository, config *ini.Section, driver neo4j.
 				}
 
 				action := component.GetName()
+
+				if slices.Contains(errorActions, action) {
+					continue
+				}
 
 				if len(strings.Split(action, "/")) > 2 {
 					actionSplit := strings.Split(action, "/")
@@ -307,25 +584,31 @@ func GetActionsCommits(repo model.Repository, config *ini.Section, driver neo4j.
 				tags, err := getTags(action, bearer)
 
 				if err != nil {
-					panic(err)
+					errorActions = append(errorActions, action)
+					continue
 				}
 
 				// Extract the commit hashes from the release tags
 				hashes, err := getCommitHashes(action, tags, bearer)
 
 				if err != nil {
-					panic(err)
+					errorActions = append(errorActions, action)
+					continue
 				}
 
 				// Pull Action repo
 				repoPath, err := pullActionRepo(action)
 
 				if err != nil {
-					panic(err)
+					errorActions = append(errorActions, action)
+					git.DeleteRepo(repoPath)
+					continue
 				}
 
 				// Extract and save the versions of the Action
-				getActionVersions(action, hashes, repoPath, driver, ctx)
+				if found := getActionVersions(action, hashes, repoPath, driver, ctx); !found {
+					errorActions = append(errorActions, action)
+				}
 
 				// Delete Action repository
 				git.DeleteRepo(repoPath)

@@ -27,14 +27,18 @@ type DiffBody struct {
 
 // FlatDiff represents the restructured diff grouped by path
 type FlatDiff struct {
-	Diff map[string]DiffBody `bson:"diff"`
+	FromCommit string              `bson:"from_commit"`
+	ToCommit   string              `bson:"to_commit"`
+	Diff       map[string]DiffBody `bson:"diff"`
 }
 
 // GroupByPath converts the diff outputted by GAWD, and groups it by path
-func GroupByPath(raw []byte) FlatDiff {
+func GroupByPath(raw []byte, precFile, succFile string) FlatDiff {
 	var jsonDiff []rawDiff
 	var bsonFlatDiff FlatDiff
 
+	bsonFlatDiff.FromCommit = precFile
+	bsonFlatDiff.ToCommit = succFile
 	bsonFlatDiff.Diff = map[string]DiffBody{}
 
 	err := json.Unmarshal(raw, &jsonDiff)

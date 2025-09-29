@@ -9,7 +9,7 @@ import (
 )
 
 func ReadConfig() (*ini.File, error) {
-	fmt.Print("\u001B[37m[INIT]\u001B[0m Reading config file")
+	// fmt.Print("\u001B[37m[INIT]\u001B[0m Reading config file")
 
 	_, filename, _, _ := runtime.Caller(0)
 	config, err := ini.Load(path.Join(path.Dir(filename), "../../config.ini"))
@@ -19,7 +19,7 @@ func ReadConfig() (*ini.File, error) {
 		log.Fatal("Make sure that a `config.ini` file exists at the root of the repository")
 	}
 
-	fmt.Println(" \u001B[32m✓\u001B[0m")
+	// fmt.Println(" \u001B[32m✓\u001B[0m")
 
 	return config, err
 }

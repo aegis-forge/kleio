@@ -1,7 +1,7 @@
 package main
 
 import (
-	"app/app/crawler"
+	"app/cmd/crawler"
 	"app/pkg/git"
 	"fmt"
 )

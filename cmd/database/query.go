@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -39,6 +40,41 @@ func ExecuteQueryMongo(content any, collection string, typz string, client mongo
 		}
 
 		return res.InsertedID.(bson.ObjectID).Hex()
+	case "find":
+		type object struct {
+			ID bson.ObjectID `bson:"_id"`
+		}
+		
+		type cont struct {
+			FromCommit string `json:"from_commit"`
+			ToCommit string `json:"to_commit"`
+		}
+		
+		var res object
+		var contents cont
+		
+		err := json.Unmarshal([]byte(content.(string)), &contents)
+		
+		if err != nil {
+			panic(err)
+		}
+		
+		filter := bson.D{
+			{Key: "$and",
+				Value: bson.A{
+					bson.D{{Key: "from_commit", Value: contents.FromCommit}},
+					bson.D{{Key: "to_commit", Value: contents.ToCommit}},
+				},
+			},
+		}
+
+		err = client.Collection(collection).FindOne(context.Background(), filter).Decode(&res)
+
+		if err == mongo.ErrNoDocuments {
+			return ""
+		}
+
+		return res.ID.Hex()
 	default:
 		panic("the type of operation does not exist")
 	}
