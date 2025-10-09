@@ -5,14 +5,18 @@ WORKDIR /kleio
 COPY . .
 
 # Install the required linux dependencies
-RUN apt-get update && apt-get install -y python3-pip python3-venv
+RUN apt-get update && apt-get install -y python3-pip python3-venv nodejs npm
+
+# Install yarn for yarn.lock analysis
+RUN npm install --global yarn corepack
+RUN corepack enable
 
 # Download modified GAWD package
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install git+https://github.com/aegis-forge/gawd
 
-# Download dependencies and build Kleio
+# Download golang dependencies and build Kleio
 RUN go mod download
 RUN go -C ./cmd build -o ../kleio
 

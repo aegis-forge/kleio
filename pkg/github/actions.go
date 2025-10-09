@@ -9,10 +9,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -28,15 +30,33 @@ import (
 )
 
 // A Release containing its tag as returned by the GitHub API
-type Release struct {
+type release struct {
 	Tag string `json:"tag_name"`
 }
 
 // A Tag with its SHA code as returned by the GitHub API
-type Tag struct {
+type tag struct {
 	Object struct {
 		Sha string `json:"sha"`
 	} `json:"object"`
+}
+
+// A Lock is the structure of a package-lock.json file
+type lock struct {
+	Packages map[string]struct {
+		Version string `json:"version"`
+	} `json:"packages"`
+	Dependencies map[string]struct {
+		Version string `json:"version"`
+	} `json:"dependencies"`
+}
+
+type yarnLock struct {
+	Data struct {
+		Trees []struct {
+			Name string `json:"name"`
+		} `json:"trees"`
+	} `json:"data"`
 }
 
 // getTags returns all the version tags present in an Action's repository
@@ -50,13 +70,13 @@ func getTags(action string, bearer string) ([]string, error) {
 
 	for {
 		uri := fmt.Sprintf("repos/%s/releases?page=%d&per_page=100", action, i)
-		res, err := PerformApiCall(uri, bearer, nil)
+		res, _, err := PerformApiCall(uri, bearer, nil)
 
 		if err != nil {
 			return nil, err
 		}
 
-		var releasesRaw []Release
+		var releasesRaw []release
 		err = json.NewDecoder(res).Decode(&releasesRaw)
 
 		if err != nil {
@@ -100,16 +120,16 @@ func getCommitHashes(action string, tags []string, bearer string) (map[string]st
 	writer := uilive.New()
 	writer.Start()
 
-	for index, tag := range tags {
+	for index, tagz := range tags {
 		// Get tag SHA
-		uri := fmt.Sprintf("repos/%s/git/ref/tags/%s", action, tag)
-		res, err := PerformApiCall(uri, bearer, nil)
+		uri := fmt.Sprintf("repos/%s/git/ref/tags/%s", action, tagz)
+		res, _, err := PerformApiCall(uri, bearer, nil)
 
 		if err != nil {
 			return nil, err
 		}
 
-		var tagRaw Tag
+		var tagRaw tag
 		err = json.NewDecoder(res).Decode(&tagRaw)
 
 		if err != nil {
@@ -118,19 +138,19 @@ func getCommitHashes(action string, tags []string, bearer string) (map[string]st
 
 		// Get commit SHA
 		uri = fmt.Sprintf("repos/%s/git/tags/%s", action, tagRaw.Object.Sha)
-		res, err = PerformApiCall(uri, bearer, nil)
+		res, status, err := PerformApiCall(uri, bearer, nil)
 
-		if err != nil {
-			hashes[tag] = tagRaw.Object.Sha
+		if err != nil || status != 200 {
+			hashes[tagz] = tagRaw.Object.Sha
 		} else {
-			var commitRaw Tag
+			var commitRaw tag
 			err = json.NewDecoder(res).Decode(&commitRaw)
 
 			if err != nil {
 				return nil, err
 			}
 
-			hashes[tag] = commitRaw.Object.Sha
+			hashes[tagz] = commitRaw.Object.Sha
 		}
 
 		_, _ = fmt.Fprintf(
@@ -228,6 +248,8 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 
 		if _, err := os.Stat(fmt.Sprintf("%s/package-lock.json", repoPath)); err == nil {
 			subtype = "js+lock"
+		} else if _, err := os.Stat(fmt.Sprintf("%s/yarn.lock", repoPath)); err == nil {
+			subtype = "js+lock"
 		} else if _, err := os.Stat(fmt.Sprintf("%s/package.json", repoPath)); err == nil {
 			subtype = "js"
 		}
@@ -295,6 +317,9 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 
 			if vulns, err := getActionVulnerabilities(actionSplit[0], actionSplit[1], version, date); err == nil {
 				for _, vuln := range vulns {
+					ratio := math.Pow(10, 2)
+					cvss := math.Round(float64(vuln.Cvss)*ratio) / ratio
+
 					database.ExecuteQueryNeo(
 						`MATCH (c:Commit {full_name: $commit})
 						MERGE (v:Vulnerability {id: $id, cve: $cve, cwes: $cwes, cvss: $cvss, published: $published})
@@ -304,7 +329,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 							"id":        vuln.Id,
 							"cve":       vuln.Cve,
 							"cwes":      vuln.Cwes,
-							"cvss":      vuln.Cvss,
+							"cvss":      cvss,
 							"published": vuln.Published,
 						},
 						driver, ctx,
@@ -312,11 +337,29 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 				}
 			}
 
-			cmd = exec.Command("git", "-C", repoPath, "show", fmt.Sprintf("%s:package-lock.json", hash))
-			out, err = cmd.Output()
+			var lock []byte
+			var lockType string
+
+			if _, err := os.Stat(fmt.Sprintf("%s/package-lock.json", repoPath)); err == nil {
+				lockType = "npm"
+			} else if _, err := os.Stat(fmt.Sprintf("%s/yarn.lock", repoPath)); err == nil {
+				lockType = "yarn"
+			}
+
+			cmd = exec.Command("git", "-C", repoPath, "show", fmt.Sprintf("%s:package.json", hash))
+			pkgJson, err := cmd.Output()
+
+			switch lockType {
+			case "npm":
+				cmd = exec.Command("git", "-C", repoPath, "show", fmt.Sprintf("%s:package-lock.json", hash))
+				lock, err = cmd.Output()
+			case "yarn":
+				cmd = exec.Command("git", "-C", repoPath, "show", fmt.Sprintf("%s:yarn.lock", hash))
+				lock, err = cmd.Output()
+			}
 
 			if err == nil {
-				getTransitiveDependenciesAndVulnerabilities(out, action+"/"+hash, driver, ctx)
+				getTransitiveDependenciesAndVulnerabilities(pkgJson, lock, lockType, repoPath, action+"/"+hash, driver, ctx)
 			}
 		}
 	}
@@ -336,27 +379,108 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 	return true
 }
 
-func getTransitiveDependenciesAndVulnerabilities(lock []byte, commit string, driver neo4j.DriverWithContext, ctx context.Context) {
-	type Lock struct {
-		Packages map[string]struct {
-			Version string `json:"version"`
-		} `json:"packages"`
-		Dependencies map[string]struct {
-			Version string `json:"version"`
-		} `json:"dependencies"`
+func getPackages(lockFile []byte, repoPath, lockType string) (map[string]string, error) {
+	dependencies := map[string]string{}
+
+	switch lockType {
+	case "npm":
+		var npmLock lock
+
+		if err := json.Unmarshal(lockFile, &npmLock); err != nil {
+			return nil, err
+		}
+
+		it := npmLock.Packages
+
+		if it == nil {
+			it = npmLock.Dependencies
+		}
+
+		for name, version := range it {
+			dependencies[name] = version.Version
+		}
+	case "yarn":
+		cmd := exec.Command("/bin/bash", "-c", fmt.Sprintf("cd %s && yarn info --name-only -R --json", repoPath))
+		out, err := cmd.CombinedOutput()
+
+		if err != nil {
+			fmt.Print(string(out))
+			return nil, err
+		}
+
+		lines := strings.Split(string(out), "\n")
+
+		if len(lines) <= 2 || strings.HasPrefix(lines[0], "{\\\"") {
+			// Try with `yarn list` if `yarn info` fails to produce dependencies
+			lines = []string{}
+			
+			cmdF := exec.Command("/bin/bash", "-c", fmt.Sprintf("cd %s && yarn list --ignore-scripts --depth=0 --json", repoPath))
+			out, err = cmdF.CombinedOutput()
+
+			if err != nil {
+				fmt.Print(string(out))
+				return nil, err
+			}
+
+			var yarnLock yarnLock
+			err = json.Unmarshal(out, &yarnLock)
+
+			if err != nil || len(yarnLock.Data.Trees) == 0 {
+				return nil, err
+			}
+
+			for _, line := range yarnLock.Data.Trees {
+				lines = append(lines, line.Name)
+			}
+
+			if len(lines) == 0 {
+				return nil, nil
+			}
+		}
+
+		for _, dep := range lines {
+			if dep == "" {
+				continue
+			}
+
+			dep = strings.ReplaceAll(dep, "\"", "")
+
+			re := regexp.MustCompile(`^(\S+)@\D*(.+)$`)
+			matches := re.FindStringSubmatch(dep)
+
+			if len(matches) < 2 {
+				continue
+			}
+
+			if strings.ContainsRune(matches[1], ':') || matches[2] == "." {
+				continue
+			}
+
+			dependencies[matches[1]] = matches[2]
+		}
 	}
 
-	var jsonLock Lock
-	err := json.Unmarshal(lock, &jsonLock)
+	return dependencies, nil
+}
+
+func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, repoPath, commit string, driver neo4j.DriverWithContext, ctx context.Context) {
+	type PackageJson struct {
+		Dependencies    map[string]string `json:"dependencies"`
+		DevDependencies map[string]string `json:"devDependencies"`
+		OptDependencies map[string]string `json:"optDependencies"`
+	}
+
+	var directDeps []string
+	var devDeps []string
+	var optDeps []string
+
+	var pkgJson PackageJson
+	err := json.Unmarshal(pkg, &pkgJson)
+
+	dependencies, err := getPackages(lock, repoPath, lockType)
 
 	if err != nil {
 		return
-	}
-
-	it := jsonLock.Packages
-
-	if it == nil {
-		it = jsonLock.Dependencies
 	}
 
 	writer := uilive.New()
@@ -364,7 +488,20 @@ func getTransitiveDependenciesAndVulnerabilities(lock []byte, commit string, dri
 
 	i := 0
 
-	for name, version := range it {
+	for i, deps := range []map[string]string{pkgJson.Dependencies, pkgJson.DevDependencies, pkgJson.OptDependencies} {
+		for dep := range deps {
+			switch i {
+			case 0:
+				directDeps = append(directDeps, dep)
+			case 1:
+				devDeps = append(devDeps, dep)
+			case 2:
+				optDeps = append(optDeps, dep)
+			}
+		}
+	}
+
+	for name, version := range dependencies {
 		if name == "" {
 			continue
 		}
@@ -374,28 +511,39 @@ func getTransitiveDependenciesAndVulnerabilities(lock []byte, commit string, dri
 		_, _ = fmt.Fprintf(
 			writer,
 			"[ACTIONS] Saving transitive dependencies [%d/%d]\n",
-			i, len(it),
+			i, len(dependencies),
 		)
 
 		nodeModules := strings.Split(name, "node_modules/")
 		cleanedName := nodeModules[len(nodeModules)-1]
+
+		moduleType := "indirect"
+
+		if slices.Contains(directDeps, cleanedName) {
+			moduleType = "direct"
+		} else if slices.Contains(devDeps, cleanedName) {
+			moduleType = "direct_dev"
+		} else if slices.Contains(optDeps, cleanedName) {
+			moduleType = "direct_opt"
+		}
 
 		if res := database.ExecuteQueryWithRetNeo(
 			`MATCH (v:Version {full_name: $version})
 			WITH COUNT(v) > 0 as node_v
 			RETURN node_v`,
 			map[string]any{
-				"version": cleanedName + "/" + version.Version,
+				"version": cleanedName + "/" + version,
 			},
 			driver, ctx,
 		); res[0].Values[0] == true {
 			database.ExecuteQueryNeo(
 				`MATCH (c:Commit {full_name: $commit})
 				MATCH (v:Version {full_name: $version})
-				MERGE (c)-[:USES]->(v)`,
+				MERGE (c)-[:USES {type: $dep}]->(v)`,
 				map[string]any{
 					"commit":  commit,
-					"version": cleanedName + "/" + version.Version,
+					"version": cleanedName + "/" + version,
+					"dep":     moduleType,
 				},
 				driver, ctx,
 			)
@@ -405,13 +553,14 @@ func getTransitiveDependenciesAndVulnerabilities(lock []byte, commit string, dri
 				MERGE (co:Component {full_name: $component, name: $cname, type: "package", provider: "npm"})
 				MERGE (v:Version {full_name: $version, name: $vname})
 				MERGE (co)-[:DEPLOYS]->(v)
-				MERGE (c)-[:USES]->(v)`,
+				MERGE (c)-[:USES {type: $dep}]->(v)`,
 				map[string]any{
 					"commit":    commit,
 					"component": cleanedName,
 					"cname":     cleanedName,
-					"version":   cleanedName + "/" + version.Version,
-					"vname":     version.Version,
+					"version":   cleanedName + "/" + version,
+					"vname":     version,
+					"dep":       moduleType,
 				},
 				driver, ctx,
 			)
@@ -419,7 +568,7 @@ func getTransitiveDependenciesAndVulnerabilities(lock []byte, commit string, dri
 			osv_url := "https://api.osv.dev/v1/query"
 			body := map[string]any{
 				"package": map[string]string{
-					"purl": fmt.Sprintf("pkg:npm/%s@%s", cleanedName, version.Version),
+					"purl": fmt.Sprintf("pkg:npm/%s@%s", cleanedName, version),
 				},
 			}
 
@@ -500,7 +649,7 @@ func getTransitiveDependenciesAndVulnerabilities(lock []byte, commit string, dri
 					MERGE (v:Vulnerability {id: $id, cve: $cve, cwes: $cwes, cvss: $cvss, published: $published})
 					MERGE (c)-[:VULNERABLE_TO]->(v)`,
 					map[string]any{
-						"version":   cleanedName + "/" + version.Version,
+						"version":   cleanedName + "/" + version,
 						"id":        vuln.Id,
 						"cve":       cve,
 						"cwes":      vuln.Advisory.CWEs,

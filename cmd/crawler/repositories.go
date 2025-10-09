@@ -67,7 +67,7 @@ func getTopRepositories(config *ini.Section) error {
 			strconv.Itoa(page+1),
 		)
 
-		res, err := github.PerformApiCall(url, ghToken, nil)
+		res, _, err := github.PerformApiCall(url, ghToken, nil)
 
 		if err != nil {
 			return err

@@ -38,20 +38,14 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context,
 		repositories = append(repositories, scanner.Text())
 	}
 
-	section, err := config.GetSection("GENERAL")
-
 	// progressBar := progress.NewPBar()
 	// progressBar.Total = uint16(len(repositories))
-
-	if err != nil {
-		panic(err)
-	}
 
 	for _, url := range repositories {
 		// progressBar.RenderPBar(index)
 
 		// Extract all workflows from repository
-		workflows, err := git.ExtractWorkflows(url, section)
+		workflows, err := git.ExtractWorkflows(url, config)
 
 		if err != nil {
 			urlSplit := strings.Split(url, "/")

@@ -93,18 +93,20 @@ func extractComponents(content string) ([]*model.Component, error) {
 }
 
 // ExtractWorkflows returns a slice of [File] structs with their histories given the URL of a GitHub repository
-func ExtractWorkflows(url string, config *ini.Section) ([]model.File, error) {
+func ExtractWorkflows(url string, config *ini.File) ([]model.File, error) {
 	var workflows []model.File
 
 	_, filename, _, _ := runtime.Caller(0)
 
 	urlSplit := strings.Split(url, "/")
+	repoVendor := urlSplit[len(urlSplit)-2]
 	repoName := urlSplit[len(urlSplit)-1]
 	reposPath := path.Join(path.Dir(filename), "../../tmp/repos")
 	repoPath := path.Join(reposPath, repoName)
 
 	if !strings.HasPrefix(url, "http") {
-		customPath, err := config.GetKey("REPOS_DIR")
+		tmp, err := config.GetSection("GENERAL")
+		customPath, err := tmp.GetKey("REPOS_DIR")
 
 		if err != nil {
 			return nil, err
@@ -156,10 +158,13 @@ func ExtractWorkflows(url string, config *ini.Section) ([]model.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	
+	tmp, err := config.GetSection("GITHUB")
+	token, err := tmp.GetKey("TOKEN")
 
 	// For each workflow file in the `.github/workflows/` directory, extract its history
 	for _, f := range files {
-		if history, err := getFileHistory(repoPath, ".github/workflows/"+f.Name()); err == nil {
+		if history, err := getFileHistory(repoPath, ".github/workflows/"+f.Name(), fmt.Sprintf("%s/%s", repoVendor, repoName), token.String()); err == nil {
 			workflows = append(workflows, history)
 		} else {
 			return nil, err

@@ -1,15 +1,15 @@
 README.md
 assets/
 docs/
-queries/
+analysis/
+tmp/
 
 # docker
 compose.yml
 dockerfile
 
 # templates
-template.config.ini
-template.env
+template.*
 
 # git
 .git

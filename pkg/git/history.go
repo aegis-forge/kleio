@@ -2,9 +2,10 @@ package git
 
 import (
 	"app/pkg/git/model"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +24,7 @@ func getContent(repositoryPath string, filePath string, hash string) (string, er
 }
 
 // getFileHistory returns a [File] struct containing its history
-func getFileHistory(repositoryPath string, path string) (model.File, error) {
+func getFileHistory(repositoryPath, path, repo, token string) (model.File, error) {
 	var commits []model.Commit
 
 	filePathSlice := strings.Split(path, "/")
@@ -31,31 +32,66 @@ func getFileHistory(repositoryPath string, path string) (model.File, error) {
 
 	fmt.Println("   Reading commits from \033[34m" + filename + "\033[0m workflow file")
 
-	cmd := exec.Command("git", "-C", repositoryPath, "log", "--follow", "--", path)
-	out, err := cmd.Output()
-
-	if err != nil {
-		return model.File{}, err
+	type commit struct {
+		Sha    string `json:"sha"`
+		Commit struct {
+			Committer struct {
+				Date string `json:"date"`
+			} `json:"committer"`
+		} `json:"commit"`
 	}
 
-	r := regexp.MustCompile(`commit\s+(\S{40})\n.*\nDate:\s+(.+)`)
-	rawCommits := r.FindAllStringSubmatch(string(out), -1)
+	commitsRaw := []commit{}
+	page := 1
 
-	for commit := range rawCommits {
-		date, err := time.Parse("Mon Jan 2 15:04:05 2006 -0700", rawCommits[commit][2])
+	for {
+		uri := fmt.Sprintf("repos/%s/commits?path=%s&page=%d&per_page=100", 
+			repo, strings.ReplaceAll(path, "/", "%2F"), page)
+
+		client := &http.Client{}
+
+		req, err := http.NewRequest("GET", "https://api.github.com/"+uri, nil)
+
+		if err != nil {
+			break
+		}
+
+		req.Header.Set("Authorization", "Bearer "+token)
+		res, err := client.Do(req)
+
+		if res.StatusCode != 200 || err != nil {
+			fmt.Println(res.StatusCode)
+			fmt.Println(err)
+			break
+		}
+
+		var commits []commit
+		err = json.NewDecoder(res.Body).Decode(&commits)
+		
+		if err != nil || len(commits) == 0 {
+			break
+		}
+
+		commitsRaw = append(commitsRaw, commits...)
+		
+		page++
+	}
+
+	for _, commit := range commitsRaw {
+		date, err := time.Parse("2006-01-02T15:04:05Z", commit.Commit.Committer.Date)
 
 		if err != nil {
 			return model.File{}, err
 		}
 
-		content, err := getContent(repositoryPath, path, rawCommits[commit][1])
+		content, err := getContent(repositoryPath, path, commit.Sha)
 
 		if err != nil {
 			continue
 		}
 
 		fmt.Print("      Extracting components from \033[34m" +
-			rawCommits[commit][1] + "\033[0m \033[37m[" + date.String() + "]\033[0m commit")
+			commit.Sha + "\033[0m \033[37m[" + date.String() + "]\033[0m commit")
 
 		components, err := extractComponents(content)
 
@@ -78,7 +114,7 @@ func getFileHistory(repositoryPath string, path string) (model.File, error) {
 			" components extracted / " + strconv.Itoa(acc) + " total uses)\n")
 
 		commitStruct := model.Commit{}
-		commitStruct.Init(rawCommits[commit][1], date, content, components)
+		commitStruct.Init(commit.Sha, date, content, components)
 
 		commits = append(commits, commitStruct)
 	}

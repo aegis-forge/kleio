@@ -32,7 +32,7 @@ services:
       start_period: 3s
 
   mongo:
-    image: mongodb/mongodb-community-server:6.0-ubi8
+    image: mongodb/mongodb-community-server:8.0-ubi8
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASS}

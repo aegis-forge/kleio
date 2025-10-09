@@ -18,8 +18,8 @@ Before starting any of the procedures below, make sure you have duplicated both 
 Kleio comes with a pre-made dockerfile and docker compose specification file. To use these, run the following commands:
 
 ```bash
-docker build . -t kleio # To build the Docker image for Kleio
-docker compose --env-file .env up -d # To spin up Kleio, Neo4j, and MongoDB
+docker build -t kleio . # To build the Docker image for Kleio
+docker compose up -d # To spin up Kleio, Neo4j, and MongoDB
 ```
 
 ### Locally
@@ -30,6 +30,7 @@ Before running Kleio, please make sure that the following requirements are satis
 - Python @v3.12.4
 - Neo4j @v5.26.9
 - MongoDB @v6.0
+- Yarn @v1.22.22
 - [GAWD (modified)](https://github.com/aegis-forge/gawd) @v1.1.1 [↩](#installing-modified-gawd)
 
 After having installed all the requirements, go ahead and compile and run Kleio by using the following command from the root of this repository:
