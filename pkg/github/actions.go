@@ -241,6 +241,8 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 
 	i := 0
 
+	checkedDependencies := []string{}
+
 	for version, hashes := range versionToCommitMap {
 		i++
 
@@ -359,7 +361,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 			}
 
 			if err == nil {
-				getTransitiveDependenciesAndVulnerabilities(pkgJson, lock, lockType, repoPath, action+"/"+hash, driver, ctx)
+				getTransitiveDependenciesAndVulnerabilities(pkgJson, lock, lockType, repoPath, action+"/"+hash, driver, ctx, &checkedDependencies)
 			}
 		}
 	}
@@ -413,7 +415,7 @@ func getPackages(lockFile []byte, repoPath, lockType string) (map[string]string,
 		if len(lines) <= 2 || strings.HasPrefix(lines[0], "{\\\"") {
 			// Try with `yarn list` if `yarn info` fails to produce dependencies
 			lines = []string{}
-			
+
 			cmdF := exec.Command("/bin/bash", "-c", fmt.Sprintf("cd %s && yarn list --ignore-scripts --depth=0 --json", repoPath))
 			out, err = cmdF.CombinedOutput()
 
@@ -463,7 +465,9 @@ func getPackages(lockFile []byte, repoPath, lockType string) (map[string]string,
 	return dependencies, nil
 }
 
-func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, repoPath, commit string, driver neo4j.DriverWithContext, ctx context.Context) {
+func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, repoPath, commit string,
+	driver neo4j.DriverWithContext, ctx context.Context, checkedDependencies *[]string) {
+
 	type PackageJson struct {
 		Dependencies    map[string]string `json:"dependencies"`
 		DevDependencies map[string]string `json:"devDependencies"`
@@ -527,15 +531,7 @@ func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, rep
 			moduleType = "direct_opt"
 		}
 
-		if res := database.ExecuteQueryWithRetNeo(
-			`MATCH (v:Version {full_name: $version})
-			WITH COUNT(v) > 0 as node_v
-			RETURN node_v`,
-			map[string]any{
-				"version": cleanedName + "/" + version,
-			},
-			driver, ctx,
-		); res[0].Values[0] == true {
+		if slices.Contains(*checkedDependencies, cleanedName + "/" + version) {
 			database.ExecuteQueryNeo(
 				`MATCH (c:Commit {full_name: $commit})
 				MATCH (v:Version {full_name: $version})
@@ -548,6 +544,30 @@ func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, rep
 				driver, ctx,
 			)
 		} else {
+			if res := database.ExecuteQueryWithRetNeo(
+				`MATCH (v:Version {full_name: $version})
+				WITH COUNT(v) > 0 as node_v
+				RETURN node_v`,
+				map[string]any{
+					"version": cleanedName + "/" + version,
+				},
+				driver, ctx,
+			); res[0].Values[0] == true {
+				database.ExecuteQueryNeo(
+					`MATCH (c:Commit {full_name: $commit})
+					MATCH (v:Version {full_name: $version})
+					MERGE (c)-[:USES {type: $dep}]->(v)`,
+					map[string]any{
+						"commit":  commit,
+						"version": cleanedName + "/" + version,
+						"dep":     moduleType,
+					},
+					driver, ctx,
+				)
+				
+				continue
+			}
+			
 			database.ExecuteQueryNeo(
 				`MATCH (c:Commit {full_name: $commit})
 				MERGE (co:Component {full_name: $component, name: $cname, type: "package", provider: "npm"})
@@ -659,6 +679,8 @@ func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, rep
 					driver, ctx,
 				)
 			}
+			
+			*checkedDependencies = append(*checkedDependencies, cleanedName + "/" + version)
 		}
 	}
 

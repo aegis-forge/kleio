@@ -1,4 +1,3 @@
-https://github.com/sparklemotion/nokogiri
 https://github.com/davidb/scala-maven-plugin
 https://github.com/tcurdt/jdeb
 https://github.com/junit-team/junit4
@@ -43340,3 +43339,4 @@ https://github.com/alphagov/smart-answers
 https://github.com/sqldelight/sqldelight
 https://github.com/mitoma/kashiki2
 https://github.com/vuejs/vue-vapor
+https://github.com/sparklemotion/nokogiri

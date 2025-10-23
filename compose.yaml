@@ -1,8 +1,8 @@
 services:
-  backend:
+  crawler:
     image: kleio:latest
     networks:
-      - backend
+      - crawler
     depends_on:
       neo:
         condition: service_healthy
@@ -22,7 +22,7 @@ services:
       - neo4j-data:/data
       - neo4j-plugins:/plugins
     networks:
-      - backend
+      - crawler
     restart: always
     healthcheck:
       test: wget http://localhost:7474 || exit 1
@@ -41,7 +41,7 @@ services:
     volumes:
       - mongodb-data:/data/db
     networks:
-      - backend
+      - crawler
     restart: always
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
@@ -51,7 +51,7 @@ services:
       start_period: 3s
 
 networks:
-  backend:
+  crawler:
     driver: bridge
     
 volumes:
