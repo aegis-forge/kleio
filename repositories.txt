@@ -1,3 +1,7 @@
+https://github.com/apache/maven
+https://github.com/apache/maven-archetype
+https://github.com/apache/maven-release
+https://github.com/apache/maven-enforcer
 https://github.com/davidb/scala-maven-plugin
 https://github.com/tcurdt/jdeb
 https://github.com/junit-team/junit4
@@ -7,11 +11,8 @@ https://github.com/connectbot/connectbot
 https://github.com/cwensel/cascading
 https://github.com/apache/zookeeper
 https://github.com/maxcom/lorsource
-https://github.com/apache/maven
-https://github.com/apache/nutch
 https://github.com/apache/commons-lang
 https://github.com/apache/avro
-https://github.com/jdbi/jdbi
 https://github.com/apache/tika
 https://github.com/apache/poi
 https://github.com/apache/httpcomponents-client
@@ -24,13 +25,11 @@ https://github.com/apache/httpcomponents-core
 https://github.com/apache/commons-cli
 https://github.com/apache/xmlgraphics-fop
 https://github.com/apache/xmlgraphics-batik
-https://github.com/apache/maven-archetype
 https://github.com/apache/roller
 https://github.com/apache/commons-logging
 https://github.com/apache/openjpa
 https://github.com/apache/directory-server
-https://github.com/apache/maven-release
-https://github.com/apache/maven-enforcer
+https://github.com/jdbi/jdbi
 https://github.com/qos-ch/logback
 https://github.com/qos-ch/slf4j
 https://github.com/apache/shiro
@@ -40,6 +39,7 @@ https://github.com/flori/json
 https://github.com/sitemesh/sitemesh3
 https://github.com/twilio/twilio-java
 https://github.com/sitemesh/sitemesh2
+https://github.com/apache/nutch
 https://github.com/sirthias/parboiled
 https://github.com/apache/pdfbox
 https://github.com/jruby/joni

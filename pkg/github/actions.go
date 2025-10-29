@@ -531,7 +531,7 @@ func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, rep
 			moduleType = "direct_opt"
 		}
 
-		if slices.Contains(*checkedDependencies, cleanedName + "/" + version) {
+		if slices.Contains(*checkedDependencies, cleanedName+"/"+version) {
 			database.ExecuteQueryNeo(
 				`MATCH (c:Commit {full_name: $commit})
 				MATCH (v:Version {full_name: $version})
@@ -564,10 +564,10 @@ func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, rep
 					},
 					driver, ctx,
 				)
-				
+
 				continue
 			}
-			
+
 			database.ExecuteQueryNeo(
 				`MATCH (c:Commit {full_name: $commit})
 				MERGE (co:Component {full_name: $component, name: $cname, type: "package", provider: "npm"})
@@ -679,8 +679,8 @@ func getTransitiveDependenciesAndVulnerabilities(pkg, lock []byte, lockType, rep
 					driver, ctx,
 				)
 			}
-			
-			*checkedDependencies = append(*checkedDependencies, cleanedName + "/" + version)
+
+			*checkedDependencies = append(*checkedDependencies, cleanedName+"/"+version)
 		}
 	}
 
