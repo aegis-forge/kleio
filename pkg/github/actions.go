@@ -280,6 +280,29 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 		)
 
 		for _, hash := range hashes {
+			if res := database.ExecuteQueryWithRetNeo(
+				`MATCH (c:Commit {full_name: $commit})
+				WITH COUNT(c) > 0 as node_v
+				RETURN node_v`,
+				map[string]any{
+					"commit": action + "/" + hash,
+				},
+				driver, ctx,
+			); res[0].Values[0] == true {
+				database.ExecuteQueryNeo(
+					`MATCH (v:Version {full_name: $version})
+					MATCH (c:Commit {full_name: $commit})
+					MERGE (v)-[:PUSHES]->(c)`,
+					map[string]any{
+						"version": action + "/" + version,
+						"commit":  action + "/" + hash,
+					},
+					driver, ctx,
+				)
+				
+				continue
+			}
+
 			cmd := exec.Command("git", "-C", repoPath, "show", "-s", "--format=%ci", hash)
 			out, err := cmd.Output()
 
