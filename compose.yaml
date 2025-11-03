@@ -1,6 +1,9 @@
 services:
   crawler:
     image: kleio:latest
+    # Uncomment to use a custom list of repositories
+    # volumes:
+    #   - ./repositories.txt:/kleio/repositories.txt
     networks:
       - crawler
     depends_on:
@@ -13,9 +16,6 @@ services:
     image: neo4j:5.26.9
     environment:
       - NEO4J_AUTH=${NEO_USER}/${NEO_PASS}
-    ports:
-      - "7474:7474"
-      - "7687:7687"
     volumes:
       - neo4j-logs:/logs
       - neo4j-config:/config
@@ -23,6 +23,9 @@ services:
       - neo4j-plugins:/plugins
     networks:
       - crawler
+    ports:
+      - "7474:7474"
+      - "7687:7687"
     restart: always
     healthcheck:
       test: wget http://localhost:7474 || exit 1
@@ -36,12 +39,12 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASS}
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb-data:/data/db
     networks:
       - crawler
+    ports:
+      - "27017:27017"
     restart: always
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]

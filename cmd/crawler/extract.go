@@ -54,10 +54,9 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context,
 			if strings.Contains(err.Error(), "no such file") {
 				fmt.Println(" \u001B[31m𐄂\u001B[0m \u001B[34m(No workflows found)\u001B[0m")
 				fmt.Println()
-				continue
 			}
-
-			panic(err)
+			
+			continue
 		}
 
 		var repo model.Repository
