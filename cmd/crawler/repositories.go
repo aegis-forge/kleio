@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gosuri/uilive"
-	"gopkg.in/ini.v1"
 )
 
 type Repos struct {
@@ -44,12 +43,15 @@ func writeToFile(urls []string) error {
 }
 
 // GetTopRepositories saves all retrieved top repository URLs to a file
-func getTopRepositories(config *ini.Section) error {
+func getTopRepositories() error {
 	var urls []string
 
-	ghToken := config.Key("TOKEN").String()
-	ghPageSize, err := config.Key("SIZE").Int()
-	ghPages, err := config.Key("PAGES").Int()
+	ghToken := os.Getenv("GITHUB_PAT")
+	ghPageSizeRaw := os.Getenv("SIZE")
+	ghPagesRaw := os.Getenv("PAGES")
+
+	ghPageSize, err := strconv.Atoi(ghPageSizeRaw)
+	ghPages, err := strconv.Atoi(ghPagesRaw)
 
 	if err != nil {
 		return err

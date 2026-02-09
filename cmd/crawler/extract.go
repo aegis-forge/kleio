@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"app/cmd/database"
-	"app/cmd/helpers"
 	"app/pkg/git"
 	"app/pkg/git/model"
 	"app/pkg/github"
@@ -18,13 +17,6 @@ import (
 
 // ExtractWorkflows extracts the workflows from the Repository
 func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context, mongoClient mongo.Database) {
-	// Read config
-	config, err := helpers.ReadConfig()
-
-	if err != nil {
-		panic(err)
-	}
-
 	f, err := os.Open("./repositories.txt")
 
 	if err != nil {
@@ -45,7 +37,7 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context,
 		// progressBar.RenderPBar(index)
 
 		// Extract all workflows from repository
-		workflows, err := git.ExtractWorkflows(url, config)
+		workflows, err := git.ExtractWorkflows(url)
 
 		if err != nil {
 			urlSplit := strings.Split(url, "/")
@@ -55,22 +47,15 @@ func ExtractWorkflows(neoDriver neo4j.DriverWithContext, neoCtx context.Context,
 				fmt.Println(" \u001B[31m𐄂\u001B[0m \u001B[34m(No workflows found)\u001B[0m")
 				fmt.Println()
 			}
-			
+
 			continue
 		}
 
 		var repo model.Repository
 		repo.Init(strings.TrimPrefix(url, "https://github.com/"), url, workflows)
 
-		// Read config
-		config, err := helpers.ReadConfig()
-
-		if err != nil {
-			panic(err)
-		}
-
 		// Retrieve Actions Commits
-		github.GetActionsCommits(repo, config.Section("GITHUB"), neoDriver, neoCtx)
+		github.GetActionsCommits(repo, neoDriver, neoCtx)
 
 		// Save repo to databases
 		database.SendToDB(repo, neoDriver, neoCtx, mongoClient)

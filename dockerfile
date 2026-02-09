@@ -1,11 +1,11 @@
-FROM golang:1.23.3-bookworm
+FROM golang:1.25.7-alpine3.23 AS build
 
 WORKDIR /kleio
 
 COPY . .
 
 # Install the required linux dependencies
-RUN apt-get update && apt-get install -y python3-pip python3-venv nodejs npm
+RUN apk update && apk add --no-cache py3-pip py3-virtualenv nodejs npm git
 
 # Install yarn for yarn.lock analysis
 RUN npm install --global yarn corepack
@@ -20,7 +20,16 @@ RUN pip install git+https://github.com/aegis-forge/gawd
 RUN go mod download
 RUN go -C ./cmd build -o ../kleio
 
-# Remove unnecessary directories and files
-RUN find . -maxdepth 1 | grep -v "kleio\|\.ini\|repositories\|^.$" | xargs rm -rf
 
-CMD [ "/kleio/kleio" ]
+FROM alpine:3.23
+
+WORKDIR /kleio
+
+RUN apk add --no-cache git
+
+# Copy necessary files from build stage
+COPY --from=build /kleio/kleio /kleio/kleio
+COPY --from=build /kleio/repositories.txt /kleio/repositories.txt
+
+ENTRYPOINT [ "/kleio/kleio" ]
+# CMD [ "/bin/sleep", "100" ]

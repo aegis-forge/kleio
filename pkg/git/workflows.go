@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/vmware-labs/yaml-jsonpath/pkg/yamlpath"
-	"gopkg.in/ini.v1"
 	"gopkg.in/yaml.v3"
 )
 
@@ -93,7 +92,7 @@ func extractComponents(content string) ([]*model.Component, error) {
 }
 
 // ExtractWorkflows returns a slice of [File] structs with their histories given the URL of a GitHub repository
-func ExtractWorkflows(url string, config *ini.File) ([]model.File, error) {
+func ExtractWorkflows(url string) ([]model.File, error) {
 	var workflows []model.File
 
 	_, filename, _, _ := runtime.Caller(0)
@@ -105,14 +104,9 @@ func ExtractWorkflows(url string, config *ini.File) ([]model.File, error) {
 	repoPath := path.Join(reposPath, repoName)
 
 	if !strings.HasPrefix(url, "http") {
-		tmp, err := config.GetSection("GENERAL")
-		customPath, err := tmp.GetKey("REPOS_DIR")
+		customPath := os.Getenv("REPOS_DIR")
 
-		if err != nil {
-			return nil, err
-		}
-
-		reposPath = path.Join(path.Dir(filename), "../..", customPath.String())
+		reposPath = path.Join(path.Dir(filename), "../..", customPath)
 		repoPath = path.Join(reposPath, repoName)
 
 		if _, err := os.Stat(path.Join(repoPath)); err != nil {
@@ -158,20 +152,19 @@ func ExtractWorkflows(url string, config *ini.File) ([]model.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	
-	tmp, err := config.GetSection("GITHUB")
-	token, err := tmp.GetKey("TOKEN")
+
+	token := os.Getenv("GITHUB_PAT")
 
 	// For each workflow file in the `.github/workflows/` directory, extract its history
 	for _, f := range files {
-		if history, err := getFileHistory(repoPath, ".github/workflows/"+f.Name(), fmt.Sprintf("%s/%s", repoVendor, repoName), token.String()); err == nil {
+		if history, err := getFileHistory(repoPath, ".github/workflows/"+f.Name(), fmt.Sprintf("%s/%s", repoVendor, repoName), token); err == nil {
 			workflows = append(workflows, history)
 		} else {
 			return nil, err
 		}
 	}
 
-	// DeleteRepo(repoPath)
+	DeleteRepo(repoPath)
 
 	return workflows, nil
 }

@@ -2,7 +2,6 @@ package crawler
 
 import (
 	"app/cmd/database"
-	"app/cmd/helpers"
 	"context"
 	"fmt"
 	"os"
@@ -15,23 +14,16 @@ import (
 func Initialize() (neo4j.DriverWithContext, context.Context, mongo.Database) {
 	fmt.Println("\u001B[37m[INIT]\u001B[0m \u001B[33mStarting initialization step")
 
-	// Read config file
-	config, err := helpers.ReadConfig()
-
-	if err != nil {
-		panic(err)
-	}
-
 	// Connect to DBs
-	neoDriver, neoCtx, err := database.ConnectToNeo(config.Section("NEO4J"))
+	neoDriver, neoCtx, err := database.ConnectToNeo()
 
 	if err != nil {
 		panic(err)
 	}
-	
+
 	// Connect to MongoDB
-	mongoClient, err := database.ConnectionToMongo(config.Section("MONGODB"))
-	
+	mongoClient, err := database.ConnectionToMongo()
+
 	if err != nil {
 		panic(err)
 	}
@@ -40,7 +32,7 @@ func Initialize() (neo4j.DriverWithContext, context.Context, mongo.Database) {
 	reposPath := "./repositories.txt"
 
 	if _, err = os.Stat(reposPath); os.IsNotExist(err) {
-		if err = getTopRepositories(config.Section("GITHUB")); err != nil {
+		if err = getTopRepositories(); err != nil {
 			panic(err)
 		}
 	}

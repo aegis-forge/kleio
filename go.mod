@@ -1,6 +1,6 @@
 module app
 
-go 1.23.3
+go 1.25.7
 
 require (
 	github.com/aegis-forge/cage v0.1.2
@@ -9,7 +9,6 @@ require (
 	github.com/pandatix/go-cvss v0.6.2
 	github.com/vmware-labs/yaml-jsonpath v0.3.2
 	go.mongodb.org/mongo-driver/v2 v2.2.2
-	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -19,6 +18,7 @@ require (
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
+	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect

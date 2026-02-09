@@ -2,7 +2,6 @@ package github
 
 import (
 	"app/cmd/database"
-	"app/cmd/helpers"
 	"app/pkg/git"
 	"app/pkg/git/model"
 	"bytes"
@@ -26,7 +25,6 @@ import (
 	gocvss20 "github.com/pandatix/go-cvss/20"
 	gocvss31 "github.com/pandatix/go-cvss/31"
 	gocvss40 "github.com/pandatix/go-cvss/40"
-	"gopkg.in/ini.v1"
 )
 
 // A Release containing its tag as returned by the GitHub API
@@ -299,7 +297,7 @@ func getActionVersions(action string, hashes map[string]string, repoPath string,
 					},
 					driver, ctx,
 				)
-				
+
 				continue
 			}
 
@@ -726,21 +724,27 @@ func getActionVulnerabilities(vendor, action, version string, time time.Time) ([
 		return nil, err
 	}
 
-	token, err := helpers.ReadConfig()
+	// token, err := helpers.ReadConfig()
 
-	if err != nil {
-		return nil, err
-	}
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	gh := cage.Github{}
-	gh.SetToken(token.Section("GITHUB").Key("TOKEN_VULNS").String())
+	// gh.SetToken(token.Section("GITHUB").Key("TOKEN_VULNS").String())
+
+	if os.Getenv("GITHUB_PAT_VULN") != "" {
+		gh.SetToken(os.Getenv("GITHUB_PAT_VULN"))
+	} else {
+		gh.SetToken(os.Getenv("GITHUB_PAT"))
+	}
 
 	return pkg.IsVulnerable([]cage.Source{gh})
 }
 
 // GetActionsCommits retrieves all the versions and commits of all the Actions present in the repositories' workflows
-func GetActionsCommits(repo model.Repository, config *ini.Section, driver neo4j.DriverWithContext, ctx context.Context) {
-	bearer := config.Key("TOKEN").String()
+func GetActionsCommits(repo model.Repository, driver neo4j.DriverWithContext, ctx context.Context) {
+	bearer := os.Getenv("GITHUB_PAT")
 	errorActions := []string{}
 
 	for _, workflow := range repo.GetFiles() {
