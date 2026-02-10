@@ -39,8 +39,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: kleio
           asset_name: kleio-${{ matrix.os }}-${{ matrix.arch }}
-          release_id: 1
-          draft: true
+          tag: ${{ github.ref }}
           
   deploy-windows:
     name: Build and push windows-${{ matrix.arch }}
@@ -72,5 +71,4 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: kleio.exe
           asset_name: kleio-${{ matrix.os }}-${{ matrix.arch }}.exe
-          release_id: 1
-          draft: true
+          tag: ${{ github.ref }}
