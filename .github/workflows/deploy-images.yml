@@ -9,6 +9,8 @@ permissions: {}
 
 jobs:
   deploy:
+    name: Push image to ${{ matrix.registry }}
+    
     permissions:
       contents: read
       packages: write
@@ -21,7 +23,7 @@ jobs:
           - registry: docker.io
             password: DOCKER_PASSW
             username: aegisforge
-            image: aegis-forge/kleio
+            image: aegisforge/kleio
           - registry: ghcr.io
             password: GITHUB_TOKEN
             username: edoriggio
