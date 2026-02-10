@@ -1,6 +1,6 @@
 <p align="center">
   <img width="100" src="assets/branding/logo.svg" alt="kleio logo"> <br><br>
-  <img src="https://img.shields.io/badge/go-v1.23.3-blue" alt="Go version">
+  <img src="https://img.shields.io/badge/go-v1.25.7-blue" alt="Go version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
 </p>
 
@@ -10,10 +10,19 @@
 
 ## How to Run
 
-Before starting any of the procedures below, make sure you have duplicated both the `env.template` file. After doing so, add the necessary data and rename the file to `.env`.
+Before starting any of the procedures below, make sure you have duplicated the `env.template` file. After doing so, add the necessary data and rename the file to `.env`.
 
 > [!IMPORTANT]  
 > Please note that you need to change `localhost` to `neo` or `mongo` (inside of `.env`) if you want to run Kleio with Docker
+
+For crawling custom repositories (by default the top `env.SIZE * env.PAGES` repositories are crawled), you need to create a `repositories.txt` file at the root of this repository. The file should be structured as follows (be sure to add a newline at the end of the file):
+
+```
+https://github.com/aegis-forge/soteria
+https://github.com/aegis-forge/cage
+https://github.com/aegis-forge/kleio
+
+```
 
 ### Docker
 
