@@ -39,5 +39,38 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: kleio
           asset_name: kleio-${{ matrix.os }}-${{ matrix.arch }}
-          release-id: ${{ github.ref }}
+          release_id: ${{ github.ref }}
+          draft: true
+          
+  deploy-windows:
+    name: Build and push windows-${{ matrix.arch }}
+
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        arch: ["amd64", "arm"]
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Build Go
+        run: GOOS="windows" GOARCH="${{ matrix.arch }}" go build -o kleio.exe ./cmd
+
+      - name: Upload Binaries
+        uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # v2.11.3
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: kleio.exe
+          asset_name: kleio-${{ matrix.os }}-${{ matrix.arch }}.exe
+          release_id: ${{ github.ref }}
           draft: true
