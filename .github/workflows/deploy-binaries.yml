@@ -39,5 +39,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: kleio
           asset_name: kleio-${{ matrix.os }}-${{ matrix.arch }}
-          tag: ${{ github.ref }}
+          release-id: ${{ github.ref }}
           draft: true
