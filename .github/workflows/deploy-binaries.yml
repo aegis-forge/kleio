@@ -10,7 +10,7 @@ permissions: {}
 jobs:
   deploy:
     name: Build and push ${{ matrix.os }}-${{ matrix.arch }}
-    
+
     permissions:
       contents: write
 

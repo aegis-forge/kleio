@@ -10,13 +10,13 @@ permissions: {}
 jobs:
   deploy:
     name: Push image to ${{ matrix.registry }}
-    
+
     permissions:
       contents: read
       packages: write
 
     runs-on: ubuntu-latest
-      
+
     strategy:
       matrix:
         include:
@@ -36,7 +36,7 @@ jobs:
           registry: ${{ matrix.registry }}
           username: ${{ matrix.username }}
           password: ${{ secrets[matrix.password] }}
-          
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
 
