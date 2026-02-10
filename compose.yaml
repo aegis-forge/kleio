@@ -1,10 +1,10 @@
 services:
   crawler:
-    image: kleio:latest
+    image: ghcr.io/aegis-forge/kleio:latest
     env_file: ".env"
     # Uncomment to use a custom list of repositories
-    volumes:
-      - ./repositories.txt:/kleio/repositories.txt
+    # volumes:
+    #   - ./repositories.txt:/kleio/repositories.txt
     networks:
       - crawler
     depends_on:
