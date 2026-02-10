@@ -17,17 +17,16 @@ jobs:
 
     env:
       ACTOR_NAME: ${{ github.actor }}
-      IMAGE_NAME: ${{ github.repository }}
       
     strategy:
       matrix:
         include:
           - registry: docker.io
-            password: ${{ secrets.GITHUB_TOKEN }}
-            image: ${{ env.IMAGE_NAME }}
+            password: GITHUB_TOKEN
+            image: aegis-forge/kleio
           - registry: ghcr.io
-            password: ${{ secrets.DOCKER_PASSW }}
-            image: ghcr.io/${{ env.IMAGE_NAME }}
+            password: DOCKER_PASSW
+            image: ghcr.io/aegis-forge/kleio
 
     steps:
       - name: Checkout repo
@@ -38,7 +37,7 @@ jobs:
         with:
           registry: ${{ matrix.registry }}
           username: ${{ env.ACTOR_NAME }}
-          password: ${{ matrix.password }}
+          password: ${{ secrets[matrix.password] }}
 
       - name: Extract metadata
         id: metadata
