@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: Kleio
+message: "If you use Kleio for your research, please cite it as below."
+type: software
+authors:
+  - given-names: Edoardo
+    family-names: Riggio
+    orcid: 'https://orcid.org/0009-0000-5649-3412'
+  - given-names: Cesare
+    family-names: Pautasso
+    orcid: 'https://orcid.org/0000-0002-2748-9665'
+preferred-citation:
+  type: conference-paper
+  authors:
+    - given-names: Edoardo
+      family-names: Riggio
+      orcid: 'https://orcid.org/0009-0000-5649-3412'
+    - given-names: Cesare
+      family-names: Pautasso
+      orcid: 'https://orcid.org/0000-0002-2748-9665'
+  title: "Changing Nothing, Yet Changing Everything: Exploring Rug Pulls in GitHub Workflows"
+  collection-title: "Proceedings of the 23rd IEEE International Conference on Software Architecture (ICSA)"
+  # doi:
+  # month:
+  year: 2026
+  # volume:
+  # start:
+  # end:

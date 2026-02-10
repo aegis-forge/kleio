@@ -6,6 +6,8 @@
 
 # kleio
 
+*Kleio* is a crawler for GitHub workflows' histories. From workflows, it extracts all its GitHub Action, Docker, and reusable workflows dependencies. Thanks to this tool, researchers can analyze the software supply chain of GitHub workflows, and how these change over time.
+
 ## How to Run
 
 Before starting any of the procedures below, make sure you have duplicated both the `env.template` file. After doing so, add the necessary data and rename the file to `.env`.
@@ -15,9 +17,15 @@ Before starting any of the procedures below, make sure you have duplicated both 
 
 ### Docker
 
-Kleio comes with a pre-made dockerfile and docker compose specification file. To use these, run the following commands:
+Kleio comes with a pre-made dockerfile and docker compose specification file. Moreover, pre-build Docker images are available both on the [ghcr.io](https://github.com/aegis-forge/kleio/pkgs/container/kleio) and [docker](https://hub.docker.com/repository/docker/aegisforge/kleio/general) registries. In both cases we provide images for both the `amd64` and `arm64` arechitectures. However, you can also manually build it. To do so, use the following command:
 
-```bash
+```sh
+docker build -t kleio .
+```
+
+By default, the docker compose's kleio image points to the image hosted on Docker. However, this can be changed to `ghcr.io/aegis-forge/kleio:latest` (if using the GitHub version), or `kleio:latest` (if building the Docker image directly from source). Once set up, the compose file can be started by using the following command:
+
+```sh
 docker compose up -d
 ```
 
@@ -35,7 +43,8 @@ Before running Kleio, please make sure that the following requirements are satis
 After having installed all the requirements, go ahead and compile and run Kleio by using the following command from the root of this repository:
 
 ```bash
-go -C ./app build -o ../kleio && ./kleio # Compile and run Kleio
+go build -o kleio ./cmd
+./kleio
 ```
 
 ## Installing Modified GAWD
@@ -45,3 +54,13 @@ To locally install our modified version of the [original GAWD tool](https://gith
 ```bash
 pip install git+https://github.com/aegis-forge/gawd
 ```
+
+## Publications
+
+Kleio was used in the following research papers:
+
+- Riggio, E. and Pautasso C. (2026). Changing Nothing, Yet Changing Everything: Exploring Rug Pulls in GitHub Workflows. Proceedings of the 23rd IEEE International Conference on Software Architecture (ICSA), IEEE, in press
+
+## Contacts
+
+- Edoardo Riggio - [https://edoriggio.com](https://edoriggio.com)
