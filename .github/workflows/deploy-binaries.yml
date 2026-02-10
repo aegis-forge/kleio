@@ -22,7 +22,7 @@ jobs:
         arch: ["amd64", "arm64"]
 
     steps:
-      - name: Checkout repo
+      - name: Checkout Repo
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Setup Go
@@ -33,7 +33,7 @@ jobs:
       - name: Build Go
         run: GOOS="${{ matrix.os }}" GOARCH="${{ matrix.arch }}" go build -o kleio ./cmd
 
-      - name: Upload binaries
+      - name: Upload Binaries
         uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # v2.11.3
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}

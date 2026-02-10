@@ -18,8 +18,7 @@ Before starting any of the procedures below, make sure you have duplicated both 
 Kleio comes with a pre-made dockerfile and docker compose specification file. To use these, run the following commands:
 
 ```bash
-docker build -t kleio . # To build the Docker image for Kleio
-docker compose up -d # To spin up Kleio, Neo4j, and MongoDB
+docker compose up -d
 ```
 
 ### Locally

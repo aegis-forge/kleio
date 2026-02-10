@@ -1,6 +1,6 @@
 services:
   crawler:
-    image: ghcr.io/aegis-forge/kleio:latest
+    image: aegisforge/kleio:latest
     env_file: ".env"
     # Uncomment to use a custom list of repositories
     # volumes:
@@ -37,7 +37,7 @@ services:
       start_period: 3s
 
   mongo:
-    image: mongodb/mongodb-community-server:8.0-ubi8
+    image: mongodb/mongodb-community-server:7.0-ubi8
     env_file: ".env"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
