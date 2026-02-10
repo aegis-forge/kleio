@@ -37,7 +37,7 @@ jobs:
         uses: svenstaro/upload-release-action@6b7fa9f267e90b50a19fef07b3596790bb941741 # v2.11.3
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/kleio
+          file: kleio
           asset_name: kleio-${{ matrix.os }}-${{ matrix.arch }}
           tag: ${{ github.ref }}
           draft: true
