@@ -1,8 +1,8 @@
 package database
 
 import (
-	"app/cmd/helpers"
-	"app/pkg/git/model"
+	"kleio/cmd/helpers"
+	"kleio/pkg/git/model"
 	"context"
 	"encoding/base64"
 	"fmt"

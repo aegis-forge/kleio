@@ -1,7 +1,7 @@
 package crawler
 
 import (
-	"app/cmd/database"
+	"kleio/cmd/database"
 	"context"
 	"fmt"
 	"os"

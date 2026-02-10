@@ -1,4 +1,4 @@
-module app
+module kleio
 
 go 1.25.7
 

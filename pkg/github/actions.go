@@ -1,9 +1,9 @@
 package github
 
 import (
-	"app/cmd/database"
-	"app/pkg/git"
-	"app/pkg/git/model"
+	"kleio/cmd/database"
+	"kleio/pkg/git"
+	"kleio/pkg/git/model"
 	"bytes"
 	"context"
 	"encoding/json"

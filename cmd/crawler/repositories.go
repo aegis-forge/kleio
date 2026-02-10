@@ -1,7 +1,7 @@
 package crawler
 
 import (
-	"app/pkg/github"
+	"kleio/pkg/github"
 	"encoding/json"
 	"fmt"
 	"os"

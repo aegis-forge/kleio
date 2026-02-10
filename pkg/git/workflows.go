@@ -1,7 +1,7 @@
 package git
 
 import (
-	"app/pkg/git/model"
+	"kleio/pkg/git/model"
 	"fmt"
 	"maps"
 	"os"

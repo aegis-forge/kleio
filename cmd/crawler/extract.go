@@ -1,10 +1,10 @@
 package crawler
 
 import (
-	"app/cmd/database"
-	"app/pkg/git"
-	"app/pkg/git/model"
-	"app/pkg/github"
+	"kleio/cmd/database"
+	"kleio/pkg/git"
+	"kleio/pkg/git/model"
+	"kleio/pkg/github"
 	"bufio"
 	"context"
 	"fmt"

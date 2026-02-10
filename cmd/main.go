@@ -1,8 +1,8 @@
 package main
 
 import (
-	"app/cmd/crawler"
-	"app/pkg/git"
+	"kleio/cmd/crawler"
+	"kleio/pkg/git"
 	"fmt"
 )
 
