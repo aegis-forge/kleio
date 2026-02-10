@@ -1,6 +1,7 @@
 name: Deploy Docker Images
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"

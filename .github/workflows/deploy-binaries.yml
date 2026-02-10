@@ -1,6 +1,7 @@
 name: Deploy Go Binaries
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -14,7 +15,7 @@ jobs:
     permissions:
       contents: write
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
