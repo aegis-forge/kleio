@@ -10,7 +10,7 @@
 
 ## How to Run
 
-Before starting any of the procedures below, make sure you have duplicated the `env.template` file. After doing so, add the necessary data and rename the file to `.env`.
+Before starting any of the procedures below, make sure you have duplicated the `.env.template` file. After doing so, add the necessary data and rename the file to `.env`.
 
 > [!IMPORTANT]  
 > Please note that you need to change `localhost` to `neo` or `mongo` (inside of `.env`) if you want to run Kleio with Docker
