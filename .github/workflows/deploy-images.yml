@@ -14,18 +14,17 @@ jobs:
       packages: write
 
     runs-on: ubuntu-latest
-
-    env:
-      ACTOR_NAME: ${{ github.actor }}
       
     strategy:
       matrix:
         include:
           - registry: docker.io
-            password: GITHUB_TOKEN
+            password: DOCKER_PASSW
+            username: aegisforge
             image: aegis-forge/kleio
           - registry: ghcr.io
-            password: DOCKER_PASSW
+            password: GITHUB_TOKEN
+            username: edoriggio
             image: ghcr.io/aegis-forge/kleio
 
     steps:
@@ -36,7 +35,7 @@ jobs:
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ${{ matrix.registry }}
-          username: ${{ env.ACTOR_NAME }}
+          username: ${{ matrix.username }}
           password: ${{ secrets[matrix.password] }}
 
       - name: Extract metadata
