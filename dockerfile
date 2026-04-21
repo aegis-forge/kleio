@@ -29,6 +29,6 @@ RUN apk add --no-cache git
 
 # Copy necessary files from build stage
 COPY --from=build /kleio/kleio /kleio/kleio
-COPY --from=build /kleio/repositories.txt /kleio/repositories.txt
+COPY --from=build /kleio/repositories.tx[t] /kleio/repositories.txt
 
 ENTRYPOINT [ "/kleio/kleio" ]
